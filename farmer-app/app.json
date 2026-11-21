@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "सजग किसान",
+    "slug": "krishidristi-farmer",
+    "scheme": "krishidristi",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "np.krishidristi.farmer"
+    },
+    "android": {
+      "package": "np.krishidristi.farmer",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#075426"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "खेतको फोटो खिच्न क्यामेरा चाहिन्छ। The camera is used to photograph your field.",
+          "photosPermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "खेतको स्थान राख्न लोकेसन चाहिन्छ। Location is used to save where your field is."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "प्रश्न बोलेर सोध्न माइक चाहिन्छ। Microphone is used to ask questions by voice.",
+          "speechRecognitionPermission": "तपाईंको बोली लेखमा बदल्न अनुमति चाहिन्छ। Used to turn your speech into text.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ]
+    ]
+  }
+}
