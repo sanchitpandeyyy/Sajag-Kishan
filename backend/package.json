@@ -1,0 +1,52 @@
+{
+  "name": "krishidristi-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "@aws-sdk/client-s3": "3.1171.0",
+    "@aws-sdk/s3-presigned-post": "3.1171.0",
+    "@aws-sdk/s3-request-presigner": "3.1171.0",
+    "@better-auth/expo": "1.7.26",
+    "@hono/node-server": "2.1.8",
+    "@hono/zod-validator": "0.9.1",
+    "@neon/config": "^1.14.5",
+    "@neon/env": "^2.1.8",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "better-auth": "1.7.26",
+    "dotenv": "18.0.10",
+    "files-sdk": "3.2.0",
+    "geotiff": "3.0.5",
+    "hono": "4.13.19",
+    "pg": "8.23.1",
+    "prisma": "7.10.1",
+    "proj4": "2.22.0",
+    "tsx": "4.23.15",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "@types/proj4": "2.19.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.1"
+  }
+}

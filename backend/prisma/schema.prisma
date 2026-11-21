@@ -1,0 +1,649 @@
+// KrishiDristi data model — see docs/03-technical-implementation.md §4
+// Prisma 7: the connection URL lives in prisma.config.ts, the runtime uses @prisma/adapter-neon.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/db/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum DataSource {
+  REGISTRY
+  FARMER
+  OFFICER
+  SATELLITE
+  MODEL
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  DISPUTED
+}
+
+enum LocalLevelType {
+  METROPOLITAN
+  SUB_METROPOLITAN
+  MUNICIPALITY
+  RURAL_MUNICIPALITY
+}
+
+enum OwnershipType {
+  OWNED
+  LEASED
+  SHARECROPPED
+  OTHER
+}
+
+enum IrrigationSource {
+  RAINFED
+  CANAL
+  TUBEWELL
+  POND
+  RIVER_LIFT
+  DRIP_SPRINKLER
+  OTHER
+}
+
+enum Season {
+  BARSHE
+  HIUDE
+  CHAITE
+}
+
+enum InputKind {
+  FERTILIZER
+  PESTICIDE
+  SEED
+  MACHINERY
+  OTHER
+}
+
+enum AllocationStatus {
+  PLANNED
+  APPROVED
+  DELIVERED
+  CANCELLED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  SEVERE
+}
+
+enum CalendarTask {
+  LAND_PREP
+  NURSERY
+  SOWING
+  TRANSPLANTING
+  FERTILIZING
+  IRRIGATION
+  WEEDING
+  PEST_SCOUTING
+  HARVEST
+  STORAGE
+}
+
+// ───────────────────── Administrative hierarchy ─────────────────────
+
+model Province {
+  id        Int        @id
+  nameNe    String
+  nameEn    String
+  districts District[]
+}
+
+model District {
+  id          Int          @id
+  provinceId  Int
+  province    Province     @relation(fields: [provinceId], references: [id])
+  nameNe      String
+  nameEn      String
+  localLevels LocalLevel[]
+
+  @@index([provinceId])
+}
+
+model LocalLevel {
+  id         Int            @id
+  districtId Int
+  district   District       @relation(fields: [districtId], references: [id])
+  nameNe     String
+  nameEn     String
+  type       LocalLevelType
+  wards      Ward[]
+  officers   OfficerProfile[]
+
+  @@index([districtId])
+}
+
+model Ward {
+  id           Int        @id @default(autoincrement())
+  localLevelId Int
+  localLevel   LocalLevel @relation(fields: [localLevelId], references: [id])
+  number       Int
+  centroidLat  Float?
+  centroidLng  Float?
+  elevationM   Float?
+  /// GeoJSON Polygon/MultiPolygon (EPSG:4326)
+  boundary     Json?
+
+  parcels              Parcel[]
+  permanentFarmers     Farmer[]          @relation("PermanentWard")
+  farmingFarmers       Farmer[]          @relation("FarmingWard")
+  alerts               Alert[]
+  advisories           Advisory[]
+  weatherSnapshots     WeatherSnapshot[]
+  satelliteObservations SatelliteObservation[]
+  chatQuestions        ChatQuestion[]
+
+  @@unique([localLevelId, number])
+}
+
+// ───────────────────────── Identity ─────────────────────────
+
+// User / Session / Account / Verification follow the Better Auth schema
+// (core + phoneNumber + admin plugins). Field names must match Better Auth exactly.
+// Login is by mobile number (`phoneNumber`); `email` is a generated placeholder
+// because Better Auth requires one. Passwords live in Account (providerId "credential").
+
+model User {
+  id                  String          @id
+  name                String
+  /// Placeholder `<mobile>@phone.krishidristi.np` — farmers log in by phone.
+  email               String          @unique
+  emailVerified       Boolean         @default(false)
+  image               String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // phoneNumber plugin
+  phoneNumber         String?         @unique
+  phoneNumberVerified Boolean?        @default(false)
+
+  // admin plugin — one of the roles in src/lib/permissions.ts
+  role                String?         @default("FARMER")
+  banned              Boolean?        @default(false)
+  banReason           String?
+  banExpires          DateTime?
+
+  /// Set when an officer issues a temporary password; cleared after /change-password.
+  mustChangePassword  Boolean         @default(false)
+
+  sessions            Session[]
+  accounts            Account[]
+  farmer              Farmer?
+  officer             OfficerProfile?
+  pushTokens          PushToken[]
+  chatQuestions       ChatQuestion[]
+  auditLogs           AuditLog[]
+  files               FileObject[]
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // admin plugin
+  impersonatedBy String?
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  /// Password hash for providerId = "credential"
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model OfficerProfile {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  designation  String?
+  /// The local level (palika) whose agriculture section this officer runs.
+  localLevelId Int
+  localLevel   LocalLevel @relation(fields: [localLevelId], references: [id])
+  advisories   Advisory[]
+  allocations  SubsidyAllocation[]
+}
+
+model Farmer {
+  id                     String     @id @default(cuid())
+  userId                 String     @unique
+  user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// ID in the government registry, when imported.
+  externalRegistryId     String?    @unique
+  source                 DataSource @default(REGISTRY)
+
+  firstNameNe            String
+  middleNameNe           String?
+  lastNameNe             String?
+  firstNameEn            String?
+  middleNameEn           String?
+  lastNameEn             String?
+  gender                 Gender
+  dobBs                  String
+  dobAd                  DateTime?
+  education              String
+
+  permanentWardId        Int
+  permanentWard          Ward       @relation("PermanentWard", fields: [permanentWardId], references: [id])
+  permanentTole          String
+  farmingSameAsPermanent Boolean    @default(true)
+  farmingWardId          Int
+  farmingWard            Ward       @relation("FarmingWard", fields: [farmingWardId], references: [id])
+  farmingTole            String
+
+  /// Sensitive: masked in UI, never exported.
+  citizenshipNo          String
+  citizenshipDistrictId  Int
+  nationalId             String?
+
+  farmingSectors         String[]
+  farmingMonthsPerYear   Int
+  consentAt              DateTime?
+
+  parcels                Parcel[]
+  declarations           SeasonDeclaration[]
+  allocations            SubsidyAllocation[]
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  @@unique([citizenshipNo, citizenshipDistrictId])
+  @@index([farmingWardId])
+}
+
+// ───────────────────────── Land ─────────────────────────
+
+model Parcel {
+  id               String            @id @default(cuid())
+  farmerId         String
+  farmer           Farmer            @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  wardId           Int
+  ward             Ward              @relation(fields: [wardId], references: [id])
+  tole             String
+  localName        String?
+  /// Cadastral parcel number (कित्ता नं.) from the land certificate.
+  kittaNo          String?
+  mapSheetNo       String?
+
+  areaM2           Float
+  /// Original entry, e.g. {"bigha":1,"kattha":5}
+  areaOriginal     Json?
+  ownershipType    OwnershipType     @default(OWNED)
+  irrigation       IrrigationSource  @default(RAINFED)
+
+  /// GeoJSON Point or Polygon (EPSG:4326). PostGIS column can be added later.
+  geometry         Json?
+  centroidLat      Float?
+  centroidLng      Float?
+  elevationM       Float?
+  /// Terrain from Copernicus DEM GLO-30 (degrees; aspect 0 = north-facing).
+  slopeDeg         Float?
+  aspectDeg        Float?
+  /// ESA WorldCover class at the point (cropland, trees, built...) and cropland share of the 50 m around it.
+  landCover        String?
+  croplandShare    Float?
+  soilPh           Float?
+
+  source           DataSource        @default(REGISTRY)
+  verification     VerificationStatus @default(UNVERIFIED)
+  verifiedById     String?
+  verifiedAt       DateTime?
+
+  declarations     SeasonDeclaration[]
+  calendarEvents   CalendarEvent[]
+  observations     SatelliteObservation[]
+  predictions      ModelPrediction[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([wardId])
+  @@index([farmerId])
+  @@index([kittaNo])
+}
+
+// ───────────────────────── Crops & seasons ─────────────────────────
+
+model Crop {
+  id            String      @id @default(cuid())
+  code          String      @unique
+  nameNe        String
+  nameEn        String
+  category      String
+  /// EcoCrop-style parameters {temp:[...], rain:[...], soilPh:[...], gddBase, durationDays}
+  params        Json
+  /// Recommended dose kg/ha {N,P,K} — expert-reviewed
+  fertilizerDose Json?
+  varieties     CropVariety[]
+  templates     CropCalendarTemplate[]
+  declarations  SeasonDeclaration[]
+}
+
+model CropVariety {
+  id      String @id @default(cuid())
+  cropId  String
+  crop    Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  name    String
+  durationDays Int?
+  notes   String?
+}
+
+model CropCalendarTemplate {
+  id          String  @id @default(cuid())
+  cropId      String
+  crop        Crop    @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  zone        String
+  season      Season
+  /// Ordered stages [{task, startMonthBs, startDay, durationDays, gddRequired?, noteNe}]
+  stages      Json
+  version     String  @default("v0")
+  reviewedBy  String?
+  reviewedAt  DateTime?
+
+  @@unique([cropId, zone, season, version])
+}
+
+model SeasonDeclaration {
+  id            String       @id @default(cuid())
+  parcelId      String
+  parcel        Parcel       @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  farmerId      String
+  farmer        Farmer       @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  cropId        String
+  crop          Crop         @relation(fields: [cropId], references: [id])
+  fiscalYearBs  String       // e.g. "2083/84"
+  season        Season
+  sownAreaM2    Float
+  sowingDate    DateTime?
+  expectedHarvest DateTime?
+  actualYieldKg Float?
+  isFallow      Boolean      @default(false)
+  source        DataSource   @default(FARMER)
+  verification  VerificationStatus @default(UNVERIFIED)
+  inputs        InputApplication[]
+  createdAt     DateTime     @default(now())
+
+  @@unique([parcelId, fiscalYearBs, season, cropId])
+  @@index([fiscalYearBs, season])
+}
+
+model InputApplication {
+  id            String            @id @default(cuid())
+  declarationId String
+  declaration   SeasonDeclaration @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+  kind          InputKind
+  product       String            // e.g. "Urea", "DAP", "MOP"
+  quantityKg    Float
+  appliedAt     DateTime?
+  source        DataSource        @default(FARMER)
+}
+
+// ───────────────────────── Subsidy ─────────────────────────
+
+model SubsidyScheme {
+  id           String      @id @default(cuid())
+  name         String
+  kind         InputKind
+  fiscalYearBs String
+  localLevelId Int?
+  unit         String      // kg, piece, NPR
+  totalBudget  Float?
+  totalStock   Float?
+  criteria     Json?
+  allocations  SubsidyAllocation[]
+  createdAt    DateTime    @default(now())
+}
+
+model SubsidyAllocation {
+  id           String           @id @default(cuid())
+  schemeId     String
+  scheme       SubsidyScheme    @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+  farmerId     String
+  farmer       Farmer           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  needQty      Float
+  allocatedQty Float
+  deliveredQty Float?
+  status       AllocationStatus @default(PLANNED)
+  priorityScore Float?
+  flags        String[]
+  officerId    String?
+  officer      OfficerProfile?  @relation(fields: [officerId], references: [id])
+  deliveredAt  DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@unique([schemeId, farmerId])
+}
+
+// ───────────────────── Calendar, alerts, advisories ─────────────────────
+
+model CalendarEvent {
+  id         String       @id @default(cuid())
+  parcelId   String
+  parcel     Parcel       @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  cropCode   String
+  task       CalendarTask
+  startsOn   DateTime
+  endsOn     DateTime
+  titleNe    String
+  noteNe     String?
+  reason     Json?
+  done       Boolean      @default(false)
+  generatedBy String      @default("calendar-v0")
+
+  @@index([parcelId, startsOn])
+}
+
+model Alert {
+  id          String          @id @default(cuid())
+  wardId      Int
+  ward        Ward            @relation(fields: [wardId], references: [id])
+  type        String
+  severity    AlertSeverity
+  validFrom   DateTime
+  validTo     DateTime
+  titleNe     String
+  messageNe   String
+  cropCodes   String[]
+  evidence    Json?
+  ruleVersion String
+  createdAt   DateTime        @default(now())
+  deliveries  AlertDelivery[]
+
+  @@unique([wardId, type, validFrom])
+}
+
+model AlertDelivery {
+  id        String    @id @default(cuid())
+  alertId   String
+  alert     Alert     @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  userId    String
+  channel   String    // push, in_app
+  sentAt    DateTime?
+  readAt    DateTime?
+  error     String?
+
+  @@unique([alertId, userId, channel])
+}
+
+model Advisory {
+  id        String         @id @default(cuid())
+  officerId String
+  officer   OfficerProfile @relation(fields: [officerId], references: [id])
+  wardId    Int?
+  ward      Ward?          @relation(fields: [wardId], references: [id])
+  localLevelId Int?
+  titleNe   String
+  bodyNe    String
+  cropCodes String[]
+  publishedAt DateTime     @default(now())
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+}
+
+// ───────────────────────── Observations ─────────────────────────
+
+model WeatherSnapshot {
+  id        String   @id @default(cuid())
+  wardId    Int
+  ward      Ward     @relation(fields: [wardId], references: [id])
+  fetchedAt DateTime @default(now())
+  provider  String   @default("open-meteo")
+  daily     Json
+  hourly    Json?
+
+  @@index([wardId, fetchedAt])
+}
+
+model SatelliteObservation {
+  id         String   @id @default(cuid())
+  parcelId   String?
+  parcel     Parcel?  @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  wardId     Int?
+  ward       Ward?    @relation(fields: [wardId], references: [id])
+  observedOn DateTime
+  sensor     String   // S2, S1, WorldCover
+  ndvi       Float?
+  /// Red-edge vigour (B8A, B05)
+  ndre       Float?
+  /// Open water (B03, B08)
+  ndwi       Float?
+  /// Canopy moisture (B8A, B11)
+  ndmi       Float?
+  /// Sentinel-1 backscatter, dB
+  vvDb       Float?
+  vhDb       Float?
+  fallowFlag Boolean?
+  cloudPct   Float?
+  meta       Json?
+
+  @@index([parcelId, observedOn])
+  @@index([wardId, observedOn])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+// ───────────────────────── Files (Neon Object Storage) ─────────────────────────
+
+/// Metadata for an object in the Neon "assets" bucket. Bytes live in the bucket; the
+/// key lives here, so rows and files branch together. Served via presigned URLs.
+model FileObject {
+  id           String   @id @default(cuid())
+  bucket       String   @default("assets")
+  key          String   @unique
+  fileName     String
+  contentType  String
+  sizeBytes    Int
+  /// What the file belongs to, e.g. "parcel" + parcel id, "registry-import" + audit id
+  entity       String
+  entityId     String
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+// ───────────────────────── Farmer questions & model outputs ─────────────────────────
+
+/// A question a farmer asked the Nepali helper, kept so officers can see what worries their wards.
+model ChatQuestion {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wardId       Int?
+  ward         Ward?    @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  question     String
+  understoodEn String?
+  intent       String
+  answerNe     String
+  mode         String
+  createdAt    DateTime @default(now())
+
+  @@index([wardId, createdAt])
+  @@index([createdAt])
+}
+
+/// Output of a trained model for one parcel (an indicator, never ground truth).
+model ModelPrediction {
+  id          String   @id @default(cuid())
+  parcelId    String
+  parcel      Parcel   @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  model       String   // e.g. landuse
+  version     String   // model file version, or rules-v1 when the fallback ran
+  label       String   // e.g. cultivated | fallow
+  probability Float
+  features    Json
+  createdAt   DateTime @default(now())
+
+  @@index([parcelId, model, createdAt])
+}
