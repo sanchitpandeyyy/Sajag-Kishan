@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #12151c;
+  --color-body: #3a4150;
+  --color-muted: #5c6473;
+  --color-ink-muted: #5c6473;
+  --color-page: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f6f8;
+  --color-fill: #eceef2;
+  --color-line: #e1e4ea;
+  --color-input-border: #b9bec8;
+
+  --color-brand-900: #04381a;
+  --color-brand-800: #075426;
+  --color-brand-700: #0b6b30;
+  --color-brand-600: #2e7d22;
+  --color-brand-500: #4a9f1e;
+  --color-brand-300: #8cc96a;
+  --color-brand-100: #e1e4ea;
+  --color-accent: #fdb103;
+  --color-accent-strong: #e8a000;
+
+  --color-danger: #c9243f;
+  --color-warning: #b26b00;
+  --color-info: #1d5fa8;
+  --color-soil: #8a5a3b;
+
+  --font-heading: var(--font-anek), "Anek Devanagari", system-ui, sans-serif;
+  --font-sans: var(--font-mukta), "Mukta", system-ui, sans-serif;
+
+  --text-hero: 60px;
+  --text-hero--line-height: 68px;
+  --text-hero--font-weight: 700;
+  --text-display: 40px;
+  --text-display--line-height: 48px;
+  --text-display--font-weight: 700;
+  --text-h1: 32px;
+  --text-h1--line-height: 40px;
+  --text-h1--font-weight: 700;
+  --text-h2: 24px;
+  --text-h2--line-height: 32px;
+  --text-h2--font-weight: 600;
+  --text-h3: 20px;
+  --text-h3--line-height: 28px;
+  --text-h3--font-weight: 600;
+  --text-h4: 16px;
+  --text-h4--line-height: 24px;
+  --text-h4--font-weight: 700;
+  --text-lead: 18px;
+  --text-lead--line-height: 30px;
+  --text-small: 14px;
+  --text-small--line-height: 22px;
+  --text-caption: 12px;
+  --text-caption--line-height: 18px;
+
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-panel: 24px;
+  --shadow-card: 0 1px 2px rgba(18, 21, 28, 0.05), 0 8px 24px rgba(18, 21, 28, 0.05);
+  --shadow-raised: 0 12px 32px rgba(18, 21, 28, 0.12);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-surface);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 26px;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    color: var(--color-ink);
+  }
+  h1,
+  h2,
+  h3,
+  p {
+    text-wrap: pretty;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-700);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .lift {
+    transition: box-shadow 180ms ease-out;
+  }
+  .lift:hover {
+    box-shadow: var(--shadow-raised);
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.bg-brand-gradient {
+  background-color: #075426;
+}
+
+section[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
