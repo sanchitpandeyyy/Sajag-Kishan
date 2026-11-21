@@ -1,6 +1,6 @@
 "use client";
 
-import { UserPlus, Users } from "lucide-react";
+import { KeyRound, Lock, LockOpen, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { Card, inputClass, PrimaryButton, Shell, StateMessage, useMe } from "@/components/shell";
 import { api } from "@/lib/api";
@@ -11,7 +11,7 @@ interface OfficerRow {
   id: string;
   fullName: string;
   designation: string | null;
-  user: { phoneNumber: string | null; role: keyof typeof ROLE_LABEL | null; banned: boolean | null };
+  user: { id: string; phoneNumber: string | null; role: keyof typeof ROLE_LABEL | null; banned: boolean | null };
   localLevel: { id: number; nameNe: string; nameEn: string };
 }
 interface LocalLevel {
@@ -20,7 +20,6 @@ interface LocalLevel {
   nameEn: string;
 }
 
-/** Super admin: agriculture-officer accounts. */
 export default function OfficersPage() {
   const { tr } = useLang();
   const { data: me } = useMe();
@@ -32,6 +31,7 @@ export default function OfficersPage() {
   const [created, setCreated] = useState<{ mobile: string; temporaryPassword: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +49,36 @@ export default function OfficersPage() {
       setError(err instanceof Error ? err.message : tr("खाता बनाउन सकिएन", "Could not create the account"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function toggleAccess(o: OfficerRow) {
+    const turningOff = !o.user.banned;
+    const reason = turningOff ? window.prompt(tr(`${o.fullName} को खाता बन्द गर्ने कारण (जस्तै: सरुवा)`, `Why turn off ${o.fullName}'s account? (for example: transferred)`)) : null;
+    if (turningOff && reason === null) return;
+    if (!turningOff && !window.confirm(tr(`${o.fullName} को खाता फेरि खोल्ने?`, `Turn ${o.fullName}'s account back on?`))) return;
+    setBusyId(o.user.id);
+    setError(null);
+    try {
+      await api(`/v1/officers/${o.user.id}/access`, { method: "POST", body: JSON.stringify({ disabled: turningOff, reason: reason || undefined }) });
+      await officers.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tr("खाता बदल्न सकिएन", "Could not change the account"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function resetPassword(o: OfficerRow) {
+    if (!window.confirm(tr(`${o.fullName} लाई नयाँ अस्थायी पासवर्ड दिने? पुरानो पासवर्ड काम गर्दैन।`, `Give ${o.fullName} a new temporary password? The old one stops working.`))) return;
+    setBusyId(o.user.id);
+    setError(null);
+    try {
+      setCreated(await api<{ mobile: string; temporaryPassword: string }>(`/v1/officers/${o.user.id}/password`, { method: "POST" }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tr("पासवर्ड दिन सकिएन", "Could not issue the password"));
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -117,11 +147,13 @@ export default function OfficersPage() {
                 <th>{tr("मोबाइल", "Mobile")}</th>
                 <th>{tr("भूमिका", "Role")}</th>
                 <th>{tr("स्थानीय तह", "Local level")}</th>
+                <th>{tr("खाता", "Account")}</th>
               </tr>
             </thead>
             <tbody>
               {officers.data?.map((o) => {
                 const role = o.user.role ? ROLE_LABEL[o.user.role] : null;
+                const self = !!me?.phoneNumber && me.phoneNumber === o.user.phoneNumber;
                 return (
                   <tr key={o.id} className="border-t border-line">
                     <td className="py-2 font-semibold">
@@ -131,6 +163,30 @@ export default function OfficersPage() {
                     <td>{o.user.phoneNumber}</td>
                     <td>{role ? tr(role[0], role[1]) : ""}</td>
                     <td>{tr(o.localLevel.nameNe, o.localLevel.nameEn)}</td>
+                    <td className="flex flex-wrap items-center gap-2 py-2">
+                      {o.user.banned && (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-danger">
+                          <Lock className="size-3" aria-hidden /> {tr("बन्द", "Off")}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => resetPassword(o)}
+                        disabled={busyId === o.user.id}
+                        className="flex items-center gap-1 rounded-md border border-brand-700 px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-surface-muted disabled:opacity-50"
+                      >
+                        <KeyRound className="size-3" /> {tr("पासवर्ड रिसेट", "Reset password")}
+                      </button>
+                      {!self && (
+                        <button
+                          onClick={() => toggleAccess(o)}
+                          disabled={busyId === o.user.id}
+                          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold hover:bg-surface-muted disabled:opacity-50 ${o.user.banned ? "border-brand-700 text-brand-700" : "border-danger text-danger"}`}
+                        >
+                          {o.user.banned ? <LockOpen className="size-3" /> : <Lock className="size-3" />}
+                          {o.user.banned ? tr("खाता खोल्नुहोस्", "Turn on") : tr("खाता बन्द", "Turn off")}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
