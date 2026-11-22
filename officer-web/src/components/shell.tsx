@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { BellRing, FileBarChart, HandCoins, LayoutDashboard, Microscope, MessageCircleQuestion, LogOut, Map, ShieldCheck, Upload, Users } from "lucide-react";
+import { BellRing, Bot, FileBarChart, HandCoins, LayoutDashboard, Microscope, MessageCircleQuestion, LogOut, Map, ShieldCheck, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
@@ -12,6 +12,7 @@ import { useApi } from "@/lib/use-api";
 
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, ne: "ड्यासबोर्ड", en: "Dashboard" },
+  { href: "/assistant", icon: Bot, ne: "डेटा सहायक", en: "Data assistant" },
   { href: "/map", icon: Map, ne: "कृषि नक्सा", en: "KrishiMap" },
   { href: "/analytics", icon: Microscope, ne: "उन्नत विश्लेषण", en: "Advanced analytics" },
   { href: "/farmers", icon: Users, ne: "कृषक र खाता", en: "Farmers & accounts" },

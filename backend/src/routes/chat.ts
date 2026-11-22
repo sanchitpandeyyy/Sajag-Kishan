@@ -12,9 +12,18 @@ import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { answer, llmConfigured } from "../chat/answer";
 import { farmerContext } from "../chat/context";
 import { geminiConfigured, transcribeNepali } from "../chat/gemini";
+import { answerOfficer, officerSummary } from "../chat/officer";
 import { getPrisma } from "../db";
 import { wardScope } from "../scope";
 import type { AppEnv } from "../types";
+
+const OFFICER_SUGGESTIONS = [
+  { ne: "यो महिना कुन वडामा डढुवाको चेतावनी आयो?", en: "Which wards had blight alerts this month?" },
+  { ne: "कति जग्गा बाँझो छ?", en: "How much land is fallow?" },
+  { ne: "मल अनुदान कति वितरण भयो?", en: "How much fertilizer subsidy has been delivered?" },
+  { ne: "कति कित्ता प्रमाणित हुन बाँकी छ?", en: "How many parcels are still unverified?" },
+  { ne: "यो हप्ता किसानले के सोधे?", en: "What did farmers ask this week?" },
+];
 
 const body = z.object({
   message: z.string().trim().min(1).max(500),
@@ -29,7 +38,7 @@ export const chatRoutes = new Hono<AppEnv>()
   .get("/suggestions", (c) =>
     c.json({
       mode: geminiConfigured() ? "gemini" : llmConfigured() ? "llm" : "local",
-      suggestions: [
+      suggestions: c.get("user").role !== "FARMER" ? OFFICER_SUGGESTIONS : [
         { ne: "भोलि पानी पर्छ?", en: "Will it rain tomorrow?" },
         { ne: "आज खेतमा के काम गर्ने?", en: "What should I do in the field today?" },
         { ne: "मेरो खेतमा युरिया कति हाल्ने?", en: "How much urea for my field?" },
@@ -56,11 +65,13 @@ export const chatRoutes = new Hono<AppEnv>()
   .post("/", zValidator("json", body), async (c) => {
     const user = c.get("user");
     const { message, history } = c.req.valid("json");
-    const ctx = user.role === "FARMER" ? await farmerContext(user.id) : null;
+    if (user.role !== "FARMER") return c.json(await answerOfficer(user, message, history));
+    const ctx = await farmerContext(user.id);
     const result = await answer(message, history, ctx);
     if (user.role === "FARMER") void logQuestion(user.id, message, result);
     return c.json(result);
   })
+  .get("/officer-summary", requireRole(...OFFICER_ROLES), async (c) => c.json(await officerSummary(c.get("user"), { fresh: c.req.query("fresh") === "1" })))
   /** Officer: what farmers in their area asked, newest first, with a count per topic. */
   .get("/questions", requireRole(...OFFICER_ROLES), zValidator("query", z.object({ intent: z.string().max(30).optional(), q: z.string().max(100).optional() })), async (c) => {
     const { intent, q } = c.req.valid("query");

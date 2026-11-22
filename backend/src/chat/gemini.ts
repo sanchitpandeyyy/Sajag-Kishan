@@ -38,6 +38,10 @@ async function generate(parts: Part[], opts: { system?: string; json?: boolean; 
   return text;
 }
 
+export function geminiJson(system: string, text: string): Promise<string> {
+  return generate([{ text }], { system, json: true, temperature: 0.2 });
+}
+
 /** Speech to Nepali text. Returns "" when nothing intelligible was said. */
 export async function transcribeNepali(audio: Buffer, mimeType: string): Promise<string> {
   const text = await generate(

@@ -11,6 +11,7 @@
 import { ArrowRight, ChartColumnStacked, ClipboardCheck, FlaskConical, Gauge, LandPlot, MapPinned, SatelliteDish, ScanSearch, Sprout, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AiSummary } from "@/components/ai-summary";
 import { AreaImage } from "@/components/area-image";
 import { CompareBars, ha, SeasonColumns, STATUS, StatusBar, StatusLegend, type FieldStatus } from "@/components/land-charts";
 import { ParcelMap, type ParcelFeature } from "@/components/parcel-map";
@@ -70,6 +71,7 @@ export default function DashboardPage() {
       }
     >
       <StateMessage loading={loading && !data} error={error} />
+      <AiSummary />
 
       {data && land && s && (
         <>
