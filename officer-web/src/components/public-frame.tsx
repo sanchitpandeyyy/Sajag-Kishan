@@ -2,24 +2,19 @@
 
 import Link from "next/link";
 import { BrandMark } from "@/components/brand";
-import { Shell } from "@/components/shell";
 import { ButtonLink } from "@/components/ui";
 import { isOfficerRole, useSession } from "@/lib/auth-client";
 import { LangToggle, useLang } from "@/lib/i18n";
 
+/**
+ * Frame for the public national data pages. They are public research pages, not part of the
+ * officer dashboard, so everyone gets the same plain header; signed-in officers see a
+ * "Dashboard" button instead of "Sign in".
+ */
 export function PublicFrame({ title, subtitle, action, crumbs, children }: { title: string; subtitle?: string; action?: React.ReactNode; crumbs?: React.ReactNode; children: React.ReactNode }) {
   const { tr } = useLang();
   const { data: session } = useSession();
   const signedIn = !!session?.user && isOfficerRole((session.user as { role?: string }).role);
-
-  if (signedIn) {
-    return (
-      <Shell title={title} subtitle={subtitle} action={action}>
-        {crumbs}
-        {children}
-      </Shell>
-    );
-  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-page">
@@ -38,9 +33,15 @@ export function PublicFrame({ title, subtitle, action, crumbs, children }: { tit
           </nav>
           <div className="min-w-0 flex-1" />
           <LangToggle />
-          <ButtonLink href="/#signin" variant="brand">
-            {tr("लगइन", "Sign in")}
-          </ButtonLink>
+          {signedIn ? (
+            <ButtonLink href="/dashboard" variant="brand">
+              {tr("ड्यासबोर्ड", "Dashboard")}
+            </ButtonLink>
+          ) : (
+            <ButtonLink href="/#signin" variant="brand">
+              {tr("लगइन", "Sign in")}
+            </ButtonLink>
+          )}
         </div>
       </header>
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 md:px-8 md:py-10">

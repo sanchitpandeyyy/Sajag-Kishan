@@ -19,6 +19,7 @@ export interface Kpi {
   municipalities: number;
 }
 
+/** The nine headline figures of the ministry dashboard, one tile each with its own icon. */
 export function KpiGrid({ kpi }: { kpi: Kpi }) {
   const { tr, num } = useLang();
   const verifiedPct = Math.round((kpi.verified / kpi.households) * 100);

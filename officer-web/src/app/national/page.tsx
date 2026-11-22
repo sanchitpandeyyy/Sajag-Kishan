@@ -27,10 +27,12 @@ import { MAP_VIEWBOX, PROVINCE_SHAPES } from "@/lib/nepal-map";
 export default function NationalData() {
   const { tr, num } = useLang();
 
+
   const topProvinceRow = PROVINCE_DETAIL.reduce((a, b) => (b.kpi.households > a.kpi.households ? b : a));
   const topProvince = { ne: topProvinceRow.ne, en: topProvinceRow.en, households: topProvinceRow.kpi.households };
   const verifiedOf = (p: (typeof PROVINCE_DETAIL)[number]) => Math.round((p.kpi.verified / p.kpi.households) * 100);
 
+  // One map area per province. Clicking opens that province with its districts.
   const provinceAreas: Area[] = PROVINCE_DETAIL.map((p) => ({
     id: p.en,
     ne: p.ne,

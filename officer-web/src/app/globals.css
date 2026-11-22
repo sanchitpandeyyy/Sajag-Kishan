@@ -1,32 +1,38 @@
 @import "tailwindcss";
 
+/* Sajag Kishan design tokens. Layout, type scale, radii and shadows follow the CEE Mentor system;
+   colours come from the Sajag Kishan logo. Pure white surfaces and cool neutral grays only. */
 @theme {
-  --color-ink: #12151c;
-  --color-body: #3a4150;
-  --color-muted: #5c6473;
-  --color-ink-muted: #5c6473;
-  --color-page: #f5f6f8;
+  /* neutrals */
+  --color-ink: #12151c; /* headings */
+  --color-body: #3a4150; /* body text */
+  --color-muted: #5c6473; /* secondary text */
+  --color-ink-muted: #5c6473; /* alias kept for existing components */
+  --color-page: #f5f6f8; /* app background, alternating sections */
   --color-surface: #ffffff;
   --color-surface-muted: #f5f6f8;
-  --color-fill: #eceef2;
+  --color-fill: #eceef2; /* hovers, tracks */
   --color-line: #e1e4ea;
   --color-input-border: #b9bec8;
 
+  /* brand (logo) */
   --color-brand-900: #04381a;
-  --color-brand-800: #075426;
+  --color-brand-800: #075426; /* logo: farmer, dark fields */
   --color-brand-700: #0b6b30;
   --color-brand-600: #2e7d22;
-  --color-brand-500: #4a9f1e;
+  --color-brand-500: #4a9f1e; /* logo: light fields, leaf */
   --color-brand-300: #8cc96a;
-  --color-brand-100: #e1e4ea;
-  --color-accent: #fdb103;
+  --color-brand-100: #e1e4ea; /* neutral on purpose: no tinted surfaces */
+  --color-accent: #fdb103; /* logo: sun. Primary CTA only */
   --color-accent-strong: #e8a000;
 
+  /* signals */
   --color-danger: #c9243f;
   --color-warning: #b26b00;
   --color-info: #1d5fa8;
   --color-soil: #8a5a3b;
 
+  /* type (CEE Mentor scale) */
   --font-heading: var(--font-anek), "Anek Devanagari", system-ui, sans-serif;
   --font-sans: var(--font-mukta), "Mukta", system-ui, sans-serif;
 
@@ -55,6 +61,7 @@
   --text-caption: 12px;
   --text-caption--line-height: 18px;
 
+  /* shape */
   --radius-control: 12px;
   --radius-card: 16px;
   --radius-panel: 24px;
@@ -100,6 +107,7 @@
 }
 
 @layer components {
+  /* clickable card: shadow lifts on hover (no colour change) */
   .lift {
     transition: box-shadow 180ms ease-out;
   }

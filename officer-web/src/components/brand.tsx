@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useLang } from "@/lib/i18n";
 
+/** Sajag Kishan logo + wordmark. `onDark` for the green sidebar (logo sits on a white disc). */
 export function BrandMark({ onDark = false, size = 40, subtitle }: { onDark?: boolean; size?: number; subtitle?: string }) {
   const { tr } = useLang();
   return (

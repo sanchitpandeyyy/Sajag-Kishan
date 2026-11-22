@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, Search, Smartphone, Users } from "lucide-react";
+import { KeyRound, Lock, LockOpen, Search, Smartphone, Users } from "lucide-react";
 import { StatTile } from "@/components/stat-tile";
 import Link from "next/link";
 import { useState } from "react";
@@ -14,6 +14,7 @@ interface FarmerRow {
   nameNe: string;
   mobile: string | null;
   hasPassword: boolean;
+  disabled: boolean;
   ward: number;
   tole: string;
   citizenshipNo: string;
@@ -23,6 +24,7 @@ interface FarmerRow {
   verifiedParcels: number;
   source: string;
 }
+
 interface Issued {
   farmerId: string;
   nameNe: string;
@@ -52,6 +54,23 @@ export default function FarmersPage() {
       await reload();
     } catch (e) {
       setIssueError(e instanceof Error ? e.message : tr("जारी गर्न सकिएन", "Could not issue the password"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function toggleAccess(f: FarmerRow) {
+    const turningOff = !f.disabled;
+    const reason = turningOff ? window.prompt(tr(`${f.nameNe} को खाता बन्द गर्ने कारण (जस्तै: फोन हरायो)`, `Why turn off ${f.nameNe}'s account? (for example: lost phone)`)) : null;
+    if (turningOff && reason === null) return;
+    if (!turningOff && !window.confirm(tr(`${f.nameNe} को खाता फेरि खोल्ने?`, `Turn ${f.nameNe}'s account back on?`))) return;
+    setBusyId(f.id);
+    setIssueError(null);
+    try {
+      await api(`/v1/farmers/${f.id}/access`, { method: "POST", body: JSON.stringify({ disabled: turningOff, reason: reason || undefined }) });
+      await reload();
+    } catch (e) {
+      setIssueError(e instanceof Error ? e.message : tr("खाता बदल्न सकिएन", "Could not change the account"));
     } finally {
       setBusyId(null);
     }
@@ -131,14 +150,27 @@ export default function FarmersPage() {
                     {num(f.parcels)}: {num(f.mappedParcels)} / {num(f.verifiedParcels)}
                   </td>
                   <td className="font-mono text-xs">{f.citizenshipNo}</td>
-                  <td>
+                  <td className="flex flex-wrap items-center gap-2 py-2">
+                    {f.disabled && (
+                      <span className="flex items-center gap-1 text-xs font-semibold text-danger">
+                        <Lock className="size-3" aria-hidden /> {tr("बन्द", "Off")}
+                      </span>
+                    )}
                     <button
                       onClick={() => issue(f)}
                       disabled={busyId === f.id}
                       className="flex items-center gap-1 rounded-md border border-brand-700 px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-surface-muted disabled:opacity-50"
                     >
                       <KeyRound className="size-3" />
-                      {f.hasPassword ? tr("पासवर्ड रिसेट", "Reset Password") : tr("पासवर्ड जारी", "Issue password")}
+                      {f.hasPassword ? tr("पासवर्ड रिसेट", "Reset password") : tr("पासवर्ड जारी", "Issue password")}
+                    </button>
+                    <button
+                      onClick={() => toggleAccess(f)}
+                      disabled={busyId === f.id}
+                      className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold hover:bg-surface-muted disabled:opacity-50 ${f.disabled ? "border-brand-700 text-brand-700" : "border-danger text-danger"}`}
+                    >
+                      {f.disabled ? <LockOpen className="size-3" /> : <Lock className="size-3" />}
+                      {f.disabled ? tr("खाता खोल्नुहोस्", "Turn on") : tr("खाता बन्द", "Turn off")}
                     </button>
                   </td>
                 </tr>
@@ -151,4 +183,3 @@ export default function FarmersPage() {
     </Shell>
   );
 }
-

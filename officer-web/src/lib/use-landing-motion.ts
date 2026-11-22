@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * Scroll effects for the landing page (GSAP + ScrollTrigger). Subtle by design:
+ * short distances, quick eases, nothing loops. Disabled for prefers-reduced-motion.
+ *
+ * Markup hooks (data attributes inside the scope element):
+ *   data-reveal              fade up once when it enters the viewport
+ *   data-stagger             its direct children fade up one after another
+ *   data-parallax="0.12"     drifts slower than the page while in view (fraction of its height)
+ *   data-count="753"         number counts up from 0 when it enters the viewport
+ *   data-scale-in            image settles from 1.06 to 1 as it scrolls into view
+ */
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";

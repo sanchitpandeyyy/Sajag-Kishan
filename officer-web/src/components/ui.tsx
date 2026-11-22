@@ -1,3 +1,7 @@
+/**
+ * Shared layout and button primitives (CEE Mentor layout system, Sajag Kishan colours).
+ * Buttons: 48px default, 56px (lg) for the one main action on a screen.
+ */
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
@@ -8,7 +12,7 @@ const base =
   "inline-flex items-center justify-center gap-2 rounded-control border-[1.5px] font-sans text-base leading-6 font-bold whitespace-nowrap no-underline cursor-pointer transition-[background-color,border-color,transform] duration-150 ease-out active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
-  primary: "border-transparent bg-accent text-ink hover:bg-accent-strong",
+  primary: "border-transparent bg-accent text-ink hover:bg-accent-strong", // sun gold: main CTA
   brand: "border-transparent bg-brand-800 text-white hover:bg-brand-900",
   secondary: "border-input-border bg-white text-ink hover:border-ink",
   ghost: "border-transparent bg-transparent text-ink hover:bg-fill",
@@ -42,6 +46,7 @@ export function ButtonA({ variant, size, className, children, ...props }: Common
   );
 }
 
+/** Page section with standard gutters, 1200px content width and 88px desktop rhythm. */
 export function Section({
   children,
   className = "",
@@ -62,6 +67,7 @@ export function Section({
   );
 }
 
+/** Centered section heading: plain eyebrow text, title, optional lead. No badges. */
 export function SectionHead({ eyebrow, title, text, onDark = false, align = "center" }: { eyebrow: string; title: string; text?: string; onDark?: boolean; align?: "center" | "left" }) {
   const a = align === "center" ? "items-center text-center" : "items-start text-left";
   return (

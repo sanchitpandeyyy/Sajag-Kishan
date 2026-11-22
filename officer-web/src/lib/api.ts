@@ -1,3 +1,4 @@
+/** The officer app's single API client. Calls go through the /api rewrite (same origin). */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -18,6 +19,7 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** JSON request. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -27,6 +29,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return handle<T>(res);
 }
 
+/** Multipart upload (the browser sets the multipart boundary header). */
 export async function apiForm<T>(path: string, form: FormData): Promise<T> {
   const res = await fetch(`/api${path}`, { method: "POST", body: form, credentials: "include" });
   return handle<T>(res);

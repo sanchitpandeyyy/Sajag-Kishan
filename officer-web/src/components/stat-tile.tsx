@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
+/** Icon tile colours: a soft tint behind a darker icon of the same hue. */
 export const TONES = {
   blue: { bg: "#E9EFFB", fg: "#1d4fa8" },
   green: { bg: "#E4F2EA", fg: "#1f7a4d" },
@@ -10,6 +11,10 @@ export const TONES = {
 
 export type Tone = keyof typeof TONES;
 
+/**
+ * KPI tile: icon on the left, then label, big number and a small note.
+ * Farmers and officers read the icon first, so every figure gets one.
+ */
 export function StatTile({ icon: Icon, tone, label, value, note }: { icon: LucideIcon; tone: Tone; label: string; value: string; note?: string }) {
   const t = TONES[tone];
   return (

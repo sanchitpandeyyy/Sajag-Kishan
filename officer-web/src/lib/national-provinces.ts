@@ -1,3 +1,9 @@
+/**
+ * Per-province figures copied from the public MoALD Farmer Registry dashboard:
+ * https://farmer.moald.gov.np/public/dashboard/?level=province&geo=1 (and geo 2 to 7).
+ * Read on 2083-08-05 BS. Static copies; refresh by hand. A null district value means the source
+ * hides it because fewer than 5 households are involved.
+ */
 
 export interface LabelValue {
   ne: string;
