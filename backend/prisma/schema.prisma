@@ -146,6 +146,7 @@ model Ward {
   alerts               Alert[]
   advisories           Advisory[]
   weatherSnapshots     WeatherSnapshot[]
+  climateDays          ClimateDay[]
   satelliteObservations SatelliteObservation[]
   chatQuestions        ChatQuestion[]
 
@@ -559,6 +560,23 @@ model WeatherSnapshot {
   @@index([wardId, fetchedAt])
 }
 
+/// Daily ERA5 reanalysis climate at the ward centre (Open-Meteo archive, about a 5-day delay).
+model ClimateDay {
+  wardId         Int
+  ward           Ward     @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  precipMm       Float?
+  tempMeanC      Float?
+  tempMaxC       Float?
+  /// Volumetric soil water, top 0-7 cm (m3/m3)
+  soilMoisture   Float?
+  /// FAO reference evapotranspiration, mm
+  et0Mm          Float?
+  fetchedAt      DateTime @default(now())
+
+  @@id([wardId, date])
+}
+
 model SatelliteObservation {
   id         String   @id @default(cuid())
   parcelId   String?
@@ -574,6 +592,10 @@ model SatelliteObservation {
   ndwi       Float?
   /// Canopy moisture (B8A, B11)
   ndmi       Float?
+  /// Enhanced vegetation index (B08, B04, B02)
+  evi        Float?
+  /// Soil-adjusted vegetation index (B08, B04)
+  savi       Float?
   /// Sentinel-1 backscatter, dB
   vvDb       Float?
   vhDb       Float?

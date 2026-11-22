@@ -56,6 +56,8 @@ export async function syncParcelHistory(parcelId: string, opts: { seasons?: numb
           ndre: r.ndre,
           ndwi: r.ndwi,
           ndmi: r.ndmi,
+          evi: r.evi,
+          savi: r.savi,
           cloudPct: r.cloudPct,
           meta: { sceneId: r.sceneId, scl: r.scl, window: w.key } as Prisma.InputJsonValue,
         },

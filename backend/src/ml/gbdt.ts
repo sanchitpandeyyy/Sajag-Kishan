@@ -1,8 +1,8 @@
 /**
  * Pure TypeScript evaluator for a LightGBM model saved with `booster.dump_model()` (JSON).
  * No native runtime (no Python, no ONNX binaries) is needed in production: the trained trees are
- * just data, and walking them is a few lines. Supports numerical splits, binary sigmoid objective
- * and LightGBM's missing-value rules.
+ * just data, and walking them is a few lines. Supports numerical splits, binary sigmoid objective,
+ * LightGBM's missing-value rules, and random-forest mode (`average_output`: trees are averaged, not summed).
  */
 
 interface SplitNode {
@@ -21,6 +21,8 @@ type TreeNode = SplitNode | LeafNode;
 
 export interface LightGbmDump {
   objective?: string;
+  /** True for boosting_type="rf": the raw score is the mean of the trees. */
+  average_output?: boolean;
   feature_names: string[];
   tree_info: { tree_structure: TreeNode }[];
 }
@@ -48,7 +50,7 @@ export function rawScore(model: LightGbmDump, x: number[]): number {
     while (!isLeaf(n)) n = goLeft(n, x[n.split_feature] ?? Number.NaN) ? n.left_child : n.right_child;
     sum += n.leaf_value;
   }
-  return sum;
+  return model.average_output && model.tree_info.length ? sum / model.tree_info.length : sum;
 }
 
 /** Probability of the positive class for a binary model. */

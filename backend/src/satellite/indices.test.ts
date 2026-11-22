@@ -27,6 +27,20 @@ describe("spectral indices", () => {
     expect(i.ndmi).toBe(0.429);
   });
 
+  it("computes EVI and SAVI for a green crop by hand", () => {
+    // NIR 0.40, red 0.05, blue 0.03: EVI = 2.5 * 0.35 / (0.40 + 0.30 - 0.225 + 1) = 0.875 / 1.475 = 0.593
+    // SAVI = 1.5 * 0.35 / (0.40 + 0.05 + 0.5) = 0.525 / 0.95 = 0.553
+    const i = spectralIndices({ blue: 0.03, red: 0.05, nir: 0.4 });
+    expect(i.evi).toBe(0.593);
+    expect(i.savi).toBe(0.553);
+  });
+
+  it("drops EVI without a blue band or outside -1..1", () => {
+    expect(spectralIndices({ red: 0.05, nir: 0.4 }).evi).toBeNull();
+    // Bright blue (haze) can push the denominator to zero or below.
+    expect(spectralIndices({ blue: 0.3, red: 0.02, nir: 0.1 }).evi).toBeNull();
+  });
+
   it("places NDVI on the 0 to 0.9+ scale", () => {
     expect(ndviClass(-0.1).key).toBe("water");
     expect(ndviClass(0.1).key).toBe("bare");

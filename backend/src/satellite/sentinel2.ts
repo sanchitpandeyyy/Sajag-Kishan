@@ -1,9 +1,9 @@
 /**
- * Sentinel-2 L2A optical indices for a point: NDVI, NDRE, NDWI and NDMI (see indices.ts).
+ * Sentinel-2 L2A optical indices for a point: NDVI, NDRE, NDWI, NDMI, EVI and SAVI (see indices.ts).
  * Read straight from cloud-optimised GeoTIFFs on Microsoft Planetary Computer (free, no account);
  * only the few pixels around the field are downloaded, never whole scenes.
  *
- * 10 m bands (B03, B04, B08) use the 3x3 pixels around the point (30 m); 20 m bands (B05, B8A, B11)
+ * 10 m bands (B02, B03, B04, B08) use the 3x3 pixels around the point (30 m); 20 m bands (B05, B8A, B11)
  * use the single pixel under it. Clouds, shadows and snow are dropped with the SCL layer.
  */
 import { mean, ndviClass, reflectance, spectralIndices, type Index } from "./indices";
@@ -14,7 +14,7 @@ const COLLECTION = "sentinel-2-l2a";
 /** SCL classes kept: 4 vegetation, 5 bare soil, 6 water, 7 unclassified. */
 const CLEAR_SCL = new Set([4, 5, 6, 7]);
 
-const BANDS = { green: "B03", red: "B04", redEdge: "B05", nir: "B08", nir8a: "B8A", swir: "B11", scl: "SCL" } as const;
+const BANDS = { blue: "B02", green: "B03", red: "B04", redEdge: "B05", nir: "B08", nir8a: "B8A", swir: "B11", scl: "SCL" } as const;
 type BandKey = keyof typeof BANDS;
 
 export interface Scene {
@@ -75,15 +75,25 @@ export async function indicesAt(scene: Scene, lat: number, lng: number, fetchImp
 
   const scl = (await read("scl", 0))[0] ?? null;
   const base = { sceneId: scene.id, date: scene.datetime.slice(0, 10), cloudPct: scene.cloudPct, scl };
-  if (scl == null || !CLEAR_SCL.has(scl)) return { ...base, ndvi: null, ndre: null, ndwi: null, ndmi: null };
+  if (scl == null || !CLEAR_SCL.has(scl)) return { ...base, ndvi: null, ndre: null, ndwi: null, ndmi: null, evi: null, savi: null };
 
-  const [green, red, nir, redEdge, nir8a, swir] = await Promise.all([read("green", 1), read("red", 1), read("nir", 1), read("redEdge", 0), read("nir8a", 0), read("swir", 0)]);
+  const [blue, green, red, nir, redEdge, nir8a, swir] = await Promise.all([read("blue", 1), read("green", 1), read("red", 1), read("nir", 1), read("redEdge", 0), read("nir8a", 0), read("swir", 0)]);
   const rf = (values: number[]) => mean(values.map((v) => reflectance(v, scene.baseline)));
-  // NDVI per pixel then averaged (the classic field value); the others from mean reflectance.
-  const ndviPixels = red.map((r, i) => spectralIndices({ red: reflectance(r, scene.baseline), nir: reflectance(nir[i] ?? 0, scene.baseline) }).ndvi);
-  const ndvi = mean(ndviPixels);
+  // 10 m indices (NDVI, EVI, SAVI) per pixel then averaged (the classic field value); the 20 m ones from mean reflectance.
+  const pixels = red.map((r, i) =>
+    spectralIndices({ red: reflectance(r, scene.baseline), nir: reflectance(nir[i] ?? 0, scene.baseline), blue: blue[i] == null ? null : reflectance(blue[i]!, scene.baseline) }),
+  );
+  const r3 = (x: number | null) => (x == null ? null : Math.round(x * 1000) / 1000);
   const rest = spectralIndices({ green: rf(green), nir: rf(nir), redEdge: rf(redEdge), nir8a: rf(nir8a), swir: rf(swir) });
-  return { ...base, ndvi: ndvi == null ? null : Math.round(ndvi * 1000) / 1000, ndre: rest.ndre, ndwi: rest.ndwi, ndmi: rest.ndmi };
+  return {
+    ...base,
+    ndvi: r3(mean(pixels.map((p) => p.ndvi))),
+    ndre: rest.ndre,
+    ndwi: rest.ndwi,
+    ndmi: rest.ndmi,
+    evi: r3(mean(pixels.map((p) => p.evi))),
+    savi: r3(mean(pixels.map((p) => p.savi))),
+  };
 }
 
 /** NDVI only (kept for older callers and the manual try script). */

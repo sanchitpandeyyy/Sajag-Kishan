@@ -8,12 +8,33 @@
  *   NDRE = (B8A - B05) / (B8A + B05)    crop vigour and nitrogen; keeps rising in dense crops where NDVI saturates
  *   NDWI = (B03 - B08) / (B03 + B08)    open water (McFeeters); flooded paddy at transplanting shows > 0
  *   NDMI = (B8A - B11) / (B8A + B11)    leaf and canopy water; drought stress drops it
+ *   EVI  = 2.5 (B08 - B04) / (B08 + 6 B04 - 7.5 B02 + 1)   greenness corrected for haze and soil (B02 blue)
+ *   SAVI = 1.5 (B08 - B04) / (B08 + B04 + 0.5)             greenness for sparse crops on bright soil
  *   dNDVI = NDVI(now) - NDVI(before)    change: green-up, harvest, damage
  *
  * Sentinel-1 RTC gives gamma0 in linear power; dB = 10 log10(power).
  */
 
-export type Index = "ndvi" | "ndre" | "ndwi" | "ndmi";
+export type Index = "ndvi" | "ndre" | "ndwi" | "ndmi" | "evi" | "savi";
+
+const round3 = (x: number) => Math.round(x * 1000) / 1000;
+const valid = (x: number | null | undefined): x is number => x != null && Number.isFinite(x);
+
+/** Enhanced vegetation index; null when bands are missing or the result is outside its physical range. */
+export function evi(nir: number | null | undefined, red: number | null | undefined, blue: number | null | undefined): number | null {
+  if (!valid(nir) || !valid(red) || !valid(blue)) return null;
+  const den = nir + 6 * red - 7.5 * blue + 1;
+  if (den <= 0) return null;
+  const v = (2.5 * (nir - red)) / den;
+  return v < -1 || v > 1 ? null : round3(v);
+}
+
+/** Soil-adjusted vegetation index (L = 0.5). */
+export function savi(nir: number | null | undefined, red: number | null | undefined): number | null {
+  if (!valid(nir) || !valid(red)) return null;
+  const den = nir + red + 0.5;
+  return den <= 0 ? null : round3((1.5 * (nir - red)) / den);
+}
 
 /** Normalised difference (a - b) / (a + b), or null when the inputs are missing or invalid. */
 export function normalizedDifference(a: number | null | undefined, b: number | null | undefined): number | null {
@@ -32,6 +53,7 @@ export function reflectance(dn: number, baseline: number): number | null {
 }
 
 export interface BandSet {
+  blue?: number | null;
   green?: number | null;
   red?: number | null;
   redEdge?: number | null;
@@ -46,6 +68,8 @@ export function spectralIndices(b: BandSet): Record<Index, number | null> {
     ndre: normalizedDifference(b.nir8a, b.redEdge),
     ndwi: normalizedDifference(b.green, b.nir),
     ndmi: normalizedDifference(b.nir8a, b.swir),
+    evi: evi(b.nir, b.red, b.blue),
+    savi: savi(b.nir, b.red),
   };
 }
 

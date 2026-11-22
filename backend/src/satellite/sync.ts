@@ -9,6 +9,16 @@ import { backscatterAt, radarVerdict, searchRadarScenes } from "./sentinel1";
 import { greennessVerdict, indicesAt, searchScenes } from "./sentinel2";
 import { predictParcel } from "../ml/jobs";
 import { terrainAt } from "./terrain";
+import { syncWardClimate } from "./climate";
+
+/** Wards whose ERA5 climate was refreshed recently (the archive only gains one day per day). */
+const climateFreshUntil = new Map<number, number>();
+
+async function ensureWardClimate(wardId: number) {
+  if ((climateFreshUntil.get(wardId) ?? 0) > Date.now()) return;
+  await syncWardClimate(wardId);
+  climateFreshUntil.set(wardId, Date.now() + 12 * 3_600_000);
+}
 
 export interface SyncStatus {
   running: boolean;
@@ -47,7 +57,7 @@ export async function syncParcel(parcelId: string, opts: { months?: number; maxS
     if (await prisma.satelliteObservation.findFirst({ where: { parcelId: p.id, sensor: "S2", observedOn } })) continue;
     const r = await indicesAt(scene, lat, lng);
     await prisma.satelliteObservation.create({
-      data: { parcelId: p.id, wardId: p.wardId, observedOn, sensor: "S2", ndvi: r.ndvi, ndre: r.ndre, ndwi: r.ndwi, ndmi: r.ndmi, cloudPct: r.cloudPct, meta: { sceneId: r.sceneId, scl: r.scl } as Prisma.InputJsonValue },
+      data: { parcelId: p.id, wardId: p.wardId, observedOn, sensor: "S2", ndvi: r.ndvi, ndre: r.ndre, ndwi: r.ndwi, ndmi: r.ndmi, evi: r.evi, savi: r.savi, cloudPct: r.cloudPct, meta: { sceneId: r.sceneId, scl: r.scl } as Prisma.InputJsonValue },
     });
     stored++;
   }
@@ -76,6 +86,8 @@ export async function syncParcel(parcelId: string, opts: { months?: number; maxS
   const radar = radarVerdict(year.filter((o) => o.sensor === "S1").map((o) => ({ date: day(o.observedOn), vvDb: o.vvDb, vhDb: o.vhDb })));
   const fallow = combinedFallow(g.likelyFallow, radar.cropCycleSeen);
   if (optical[0] && fallow != null) await prisma.satelliteObservation.update({ where: { id: optical[0].id }, data: { fallowFlag: fallow } });
+  // Ward climate (ERA5) feeds the model's climate features; a failure here never blocks the sync.
+  await ensureWardClimate(p.wardId).catch((e) => console.warn("[climate]", e instanceof Error ? e.message : e));
   // Fresh land-use prediction (trained model, or rules if no model file yet).
   if (stored > 0) await predictParcel(p.id).catch(() => null);
   return stored;

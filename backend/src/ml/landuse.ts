@@ -9,18 +9,32 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LANDUSE_FEATURES, toVector, type LanduseFeature } from "./features";
 import { predictProba, type LightGbmDump } from "./gbdt";
+import { logisticProba, type LogisticModel } from "./linear";
 
-export interface LanduseModelFile {
+/** Model families the trainer can pick; each has an evaluator here. */
+export type LanduseModelKind = "logistic" | "random_forest" | "lightgbm";
+
+interface ModelFileBase {
   name: "landuse";
   version: string;
   trainedAt: string;
-  /** "verified-fields", "farmer-declarations" or "synthetic" (bootstrap only). */
+  /** "verified-fields", "mixed" or "synthetic" (bootstrap only). */
   trainedOn: string;
   rows: number;
-  metrics: Record<string, number>;
+  metrics: Record<string, number | string>;
   features: string[];
   threshold: number;
-  model: LightGbmDump;
+  /** Cross-validation results for every candidate the trainer compared. */
+  comparison?: Record<string, Record<string, number>>;
+}
+
+export type LanduseModelFile =
+  | (ModelFileBase & { kind: "logistic"; model: LogisticModel })
+  | (ModelFileBase & { kind?: "random_forest" | "lightgbm"; model: LightGbmDump });
+
+/** Probability that the field is cultivated, from whichever model family was exported. */
+export function modelProba(file: LanduseModelFile, x: number[]): number {
+  return file.kind === "logistic" ? logisticProba(file.model, x) : predictProba(file.model, x);
 }
 
 export interface LandusePrediction {
@@ -40,7 +54,9 @@ export function loadLanduseModel(path = MODEL_PATH): LanduseModelFile | null {
   const mtime = statSync(path).mtimeMs; // reload when the file is replaced by a new training run
   if (cached && cached.mtime === mtime) return cached.model;
   const file = JSON.parse(readFileSync(path, "utf8")) as LanduseModelFile;
-  const ok = file.features.length === LANDUSE_FEATURES.length && file.features.every((f, i) => f === LANDUSE_FEATURES[i]);
+  const known = file.kind == null || file.kind === "logistic" || file.kind === "random_forest" || file.kind === "lightgbm";
+  if (!known) console.warn(`[ml] landuse.json has an unknown model kind "${String(file.kind)}"; using rules`);
+  const ok = known && file.features.length === LANDUSE_FEATURES.length && file.features.every((f, i) => f === LANDUSE_FEATURES[i]);
   if (!ok) console.warn("[ml] landuse.json features do not match LANDUSE_FEATURES; using rules");
   cached = { mtime, model: ok ? file : null };
   return cached.model;
@@ -60,6 +76,6 @@ export function landuseRules(f: Record<LanduseFeature, number>): LandusePredicti
 
 export function predictLanduse(f: Record<LanduseFeature, number>, model: LanduseModelFile | null = loadLanduseModel()): LandusePrediction {
   if (!model) return landuseRules(f);
-  const p = Math.round(predictProba(model.model, toVector(f)) * 1000) / 1000;
+  const p = Math.round(modelProba(model, toVector(f)) * 1000) / 1000;
   return { label: p >= model.threshold ? "cultivated" : "fallow", probability: p, version: model.version, source: "model", trainedOn: model.trainedOn };
 }
