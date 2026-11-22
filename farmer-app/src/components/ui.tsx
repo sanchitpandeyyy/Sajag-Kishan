@@ -50,7 +50,7 @@ export function BrandRow({ right }: { right?: React.ReactNode }) {
     <View style={styles.brandRow}>
       <View style={styles.brandLeft}>
         <Image source={require("../../assets/icon.png")} style={styles.brandLogo} resizeMode="contain" />
-        <Text style={styles.brandName}>{tr("कृषि दृष्टि", "Krishi Drishti")}</Text>
+        <Text style={styles.brandName}>{tr("कृषि दृष्टि", "Krishi Dristi")}</Text>
       </View>
       <View style={styles.brandRight}>
         {right}

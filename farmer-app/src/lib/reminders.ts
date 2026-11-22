@@ -58,7 +58,7 @@ export async function scheduleTaskReminders(events: CalendarEvent[], lang: Lang)
       identifier: `${TASK_PREFIX}${e.crop}:${e.task}:${e.startsOn.slice(0, 10)}`,
       content: {
         title: lang === "ne" ? `आज: ${e.titleNe}` : `Today: ${TASK_EN[e.task] ?? e.titleNe}`,
-        body: lang === "ne" ? "कृषि दृष्टि पात्रो" : "Krishi Drishti calendar",
+        body: lang === "ne" ? "कृषि दृष्टि पात्रो" : "Krishi Dristi calendar",
         sound: "default",
         priority: Notifications.AndroidNotificationPriority.MAX,
         data: { screen: "/calendar" },

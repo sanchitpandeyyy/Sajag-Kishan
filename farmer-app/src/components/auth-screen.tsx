@@ -14,7 +14,7 @@ export function AuthScreen({ title, subtitle, icon, children }: { title: string;
           <View style={styles.top}>
             <View style={styles.brand}>
               <Image source={require("../../assets/icon.png")} style={styles.logo} resizeMode="contain" />
-              <Text style={styles.brandName}>{tr("कृषि दृष्टि", "Krishi Drishti")}</Text>
+              <Text style={styles.brandName}>{tr("कृषि दृष्टि", "Krishi Dristi")}</Text>
             </View>
             <LangSwitch />
           </View>
