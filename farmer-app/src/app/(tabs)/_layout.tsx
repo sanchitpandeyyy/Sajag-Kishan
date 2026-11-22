@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { useEffect } from "react";
 import { useLang } from "@/lib/i18n";
+import { prefetchTabs } from "@/lib/use-data";
 import { registerForPush } from "@/lib/push";
 import { theme } from "@/theme";
 
@@ -13,7 +14,9 @@ export default function TabsLayout() {
   const { tr } = useLang();
   const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
-    void registerForPush();
+    prefetchTabs();
+    const t = setTimeout(() => void registerForPush(), 3000); // keep push setup off the startup path
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => {
     const screen = response?.notification.request.content.data?.screen;

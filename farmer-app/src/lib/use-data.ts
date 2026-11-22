@@ -18,6 +18,23 @@ function fetchShared<T>(path: string): Promise<T> {
   return p;
 }
 
+/** Warm the cache for every tab in parallel; the parcel-dependent calls start as soon as parcels arrive. */
+export function prefetchTabs(): void {
+  const warm = (path: string) => fetchShared<unknown>(path).catch(() => undefined);
+  void Promise.all([
+    warm("/v1/me"),
+    warm("/v1/alerts"),
+    warm("/v1/subsidies/mine"),
+    warm("/v1/subsidies/open"),
+    fetchShared<Parcel[]>("/v1/parcels")
+      .then((parcels) => {
+        const id = parcels[0]?.id;
+        if (id) return Promise.all([warm(`/v1/calendar?parcelId=${id}`), warm(`/v1/advice?parcelId=${id}`)]);
+      })
+      .catch(() => undefined),
+  ]);
+}
+
 export function useData<T>(path: string | null) {
   const cached = path ? memoryGet(path) : undefined;
   const [data, setData] = useState<T | null>((cached?.data as T) ?? null);
