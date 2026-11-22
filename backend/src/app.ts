@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
@@ -42,6 +43,8 @@ app.use(
     maxAge: 600,
   }),
 );
+
+app.use("*", compress());
 
 app.get("/health", (c) => c.json({ ok: true, service: "krishidristi-api", time: new Date().toISOString() }));
 

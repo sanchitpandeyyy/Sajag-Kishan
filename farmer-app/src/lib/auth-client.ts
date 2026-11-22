@@ -8,6 +8,7 @@ import { adminClient, inferAdditionalFields, phoneNumberClient } from "better-au
 import { createAuthClient } from "better-auth/react";
 import * as SecureStore from "expo-secure-store";
 import { ac, roles } from "./permissions";
+import { clearDataCache } from "./data-cache";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787";
 
@@ -22,7 +23,12 @@ export const authClient = createAuthClient({
   ],
 });
 
-export const { useSession, signOut } = authClient;
+export const { useSession } = authClient;
+
+export function signOut(...args: Parameters<typeof authClient.signOut>) {
+  clearDataCache();
+  return authClient.signOut(...args);
+}
 
 /** Cookie header for authenticated calls to the KrishiDristi API. */
 export async function authHeaders(): Promise<Record<string, string>> {

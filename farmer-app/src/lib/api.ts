@@ -1,5 +1,6 @@
 /** The farmer app's single API client. Auth comes from the Better Auth session cookie. */
 import { API_URL, authHeaders } from "./auth-client";
+import { markAllStale } from "./data-cache";
 import { showToast } from "./toast";
 
 /** fetch that turns "no reply" into a readable error and shows it as a toast. */
@@ -30,6 +31,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     showToast(`${path.split("?")[0]}: ${msg}`);
     throw new Error(msg);
   }
+  if (init?.method && init.method !== "GET") markAllStale();
   return res.json() as Promise<T>;
 }
 
@@ -42,6 +44,7 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
     showToast(`${path}: ${msg}`);
     throw new Error(msg);
   }
+  markAllStale();
   return res.json() as Promise<T>;
 }
 

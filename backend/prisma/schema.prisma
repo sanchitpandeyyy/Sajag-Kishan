@@ -416,6 +416,7 @@ model SeasonDeclaration {
 
   @@unique([parcelId, fiscalYearBs, season, cropId])
   @@index([fiscalYearBs, season])
+  @@index([farmerId])
 }
 
 model InputApplication {
@@ -427,6 +428,7 @@ model InputApplication {
   quantityKg    Float
   appliedAt     DateTime?
   source        DataSource        @default(FARMER)
+  @@index([declarationId])
 }
 
 // ───────────────────────── Subsidy ─────────────────────────
@@ -463,6 +465,7 @@ model SubsidyAllocation {
   createdAt    DateTime         @default(now())
 
   @@unique([schemeId, farmerId])
+  @@index([farmerId])
 }
 
 // ───────────────────── Calendar, alerts, advisories ─────────────────────
@@ -501,6 +504,7 @@ model Alert {
   deliveries  AlertDelivery[]
 
   @@unique([wardId, type, validFrom])
+  @@index([wardId, validTo])
 }
 
 model AlertDelivery {
@@ -514,6 +518,7 @@ model AlertDelivery {
   error     String?
 
   @@unique([alertId, userId, channel])
+  @@index([userId])
 }
 
 model Advisory {
@@ -527,6 +532,7 @@ model Advisory {
   bodyNe    String
   cropCodes String[]
   publishedAt DateTime     @default(now())
+  @@index([wardId, publishedAt])
 }
 
 model PushToken {
@@ -536,6 +542,7 @@ model PushToken {
   token     String   @unique
   platform  String
   createdAt DateTime @default(now())
+  @@index([userId])
 }
 
 // ───────────────────────── Observations ─────────────────────────

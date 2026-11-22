@@ -4,6 +4,7 @@ import { Field, Message, PrimaryButton } from "@/components/form";
 import { API_URL, authClient, useSession } from "@/lib/auth-client";
 import { useLang } from "@/lib/i18n";
 import { showToast } from "@/lib/toast";
+import { clearDataCache } from "@/lib/data-cache";
 
 export default function SignIn() {
   const { tr } = useLang();
@@ -17,6 +18,7 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
+      clearDataCache();
       const { error } = await authClient.signIn.phoneNumber({ phoneNumber: mobile.trim(), password, rememberMe: true });
       if (!error) {
         // Re-read the session so the root layout's guard opens the app right away.

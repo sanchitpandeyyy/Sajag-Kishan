@@ -9,6 +9,8 @@ import { assessDiseaseRisk, evaluateWeatherAlerts, fetchForecast } from "../engi
 import { notifyWard } from "../notify";
 import { currentFiscalYearBs, currentSeason } from "../scope";
 
+const WARD_CONCURRENCY = Number(process.env.ALERT_WARD_CONCURRENCY ?? 4);
+
 interface AlertLike {
   titleNe: string;
   messageNe: string;
@@ -55,27 +57,29 @@ export async function refreshWardAlerts(wardIds: number[]) {
     pushed += r.pushed;
   }
 
-  for (const ward of wards) {
+  async function processWard(ward: (typeof wards)[number]) {
     try {
       const fc = await fetchForecast(ward.centroidLat!, ward.centroidLng!);
       await prisma.weatherSnapshot.create({ data: { wardId: ward.id, daily: fc.daily as unknown as Prisma.InputJsonValue, hourly: fc.hourly as unknown as Prisma.InputJsonValue } });
 
-      // 1. Weather alerts (everyone in the ward).
       for (const a of evaluateWeatherAlerts(fc.daily)) {
         await store(ward.id, { ...a, cropCodes: [], evidence: a.evidence });
       }
 
-      // 2. Disease and pest risk for crops declared in this ward this season.
-      const declared = await prisma.seasonDeclaration.findMany({
-        where: { fiscalYearBs, season, isFallow: false, parcel: { wardId: ward.id } },
-        select: { crop: { select: { code: true } } },
-        distinct: ["cropId"],
-      });
+      const [declared, past] = await Promise.all([
+        prisma.seasonDeclaration.findMany({
+          where: { fiscalYearBs, season, isFallow: false, parcel: { wardId: ward.id } },
+          select: { crop: { select: { code: true } } },
+          distinct: ["cropId"],
+        }),
+        prisma.alert.groupBy({ by: ["type"], where: { wardId: ward.id, validFrom: { lt: new Date() } }, _count: { _all: true } }),
+      ]);
+      const pastCount = new Map(past.map((p) => [p.type, p._count._all]));
       for (const { crop } of declared) {
-        const past = await prisma.alert.groupBy({ by: ["type"], where: { wardId: ward.id, validFrom: { lt: new Date() } }, _count: { _all: true } });
-        const pastCount = new Map(past.map((p) => [p.type, p._count._all]));
-        for (const r of assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily })) {
-          const withHistory = assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily, pastAlertsInWard: pastCount.get(r.code) ?? 0 }).find((x) => x.code === r.code) ?? r;
+        const base = assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily });
+        for (const r of base) {
+          const history = pastCount.get(r.code) ?? 0;
+          const withHistory = history ? (assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily, pastAlertsInWard: history }).find((x) => x.code === r.code) ?? r) : r;
           if (withHistory.level === "LOW") continue;
           await store(ward.id, {
             type: withHistory.code,
@@ -84,7 +88,7 @@ export async function refreshWardAlerts(wardIds: number[]) {
             titleNe: `${withHistory.name.ne}को जोखिम`,
             messageNe: `${withHistory.why.ne} ${withHistory.prevent[0]?.ne ?? ""}`.trim(),
             cropCodes: [crop.code],
-            evidence: { score: withHistory.score, level: withHistory.level, days: withHistory.days, pastAlertsInWard: pastCount.get(r.code) ?? 0 },
+            evidence: { score: withHistory.score, level: withHistory.level, days: withHistory.days, pastAlertsInWard: history },
             ruleVersion: withHistory.ruleVersion,
           });
         }
@@ -93,5 +97,11 @@ export async function refreshWardAlerts(wardIds: number[]) {
       failures.push({ wardId: ward.id, error: e instanceof Error ? e.message : String(e) });
     }
   }
+
+  const queue = [...wards];
+  const workers = Array.from({ length: Math.min(WARD_CONCURRENCY, queue.length) }, async () => {
+    for (let w = queue.shift(); w; w = queue.shift()) await processWard(w);
+  });
+  await Promise.all(workers);
   return { wards: wards.length, created, pushed, failures };
 }
