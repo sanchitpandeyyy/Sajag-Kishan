@@ -304,7 +304,14 @@ model Parcel {
   aspectDeg        Float?
   landCover        String?
   croplandShare    Float?
+  /// Where soilPh came from: "FIELD_TEST" (entered) or "ESTIMATED_SOILGRIDS" (global model, not measured).
   soilPh           Float?
+  soilPhSource     String?
+  /// SoilGrids 2.0 estimates (ISRIC, ~250 m, top 0-5 cm). Modelled, not measured.
+  soilOrganicC     Float?
+  soilNitrogen     Float?
+  clayPct          Float?
+  soilEstimatedAt  DateTime?
 
   source           DataSource        @default(REGISTRY)
   verification     VerificationStatus @default(UNVERIFIED)

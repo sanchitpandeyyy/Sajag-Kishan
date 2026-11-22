@@ -2,6 +2,7 @@ import { getPrisma, type Prisma } from "../db";
 import { backscatterAt, radarVerdict, searchRadarScenes } from "./sentinel1";
 import { greennessVerdict, indicesAt, searchScenes } from "./sentinel2";
 import { predictParcel } from "../ml/jobs";
+import { soilAt } from "./soilgrids";
 import { terrainAt } from "./terrain";
 import { syncWardClimate } from "./climate";
 
@@ -27,13 +28,31 @@ export const syncStatus: SyncStatus = { running: false, startedAt: null, finishe
 
 export async function syncParcel(parcelId: string, opts: { months?: number; maxScenes?: number } = {}): Promise<number> {
   const prisma = getPrisma();
-  const p = await prisma.parcel.findUniqueOrThrow({ where: { id: parcelId }, select: { id: true, wardId: true, centroidLat: true, centroidLng: true, slopeDeg: true } });
+  const p = await prisma.parcel.findUniqueOrThrow({ where: { id: parcelId }, select: { id: true, wardId: true, centroidLat: true, centroidLng: true, slopeDeg: true, soilPh: true, soilEstimatedAt: true } });
   if (p.centroidLat == null || p.centroidLng == null) return 0;
   const [lat, lng] = [p.centroidLat, p.centroidLng];
 
   if (p.slopeDeg == null) {
     const t = await terrainAt(lat, lng).catch(() => null);
     if (t) await prisma.parcel.update({ where: { id: p.id }, data: { elevationM: t.elevationM, slopeDeg: t.slopeDeg, aspectDeg: t.aspectDeg } });
+  }
+
+  if (p.soilEstimatedAt == null) {
+    const s = await soilAt(lat, lng).catch(() => null);
+    if (s) {
+      // Never overwrite a pH that was entered from a real test; only fill an empty one, and label it.
+      const fillPh = p.soilPh == null && s.soilPh != null;
+      await prisma.parcel.update({
+        where: { id: p.id },
+        data: {
+          soilOrganicC: s.soilOrganicC,
+          soilNitrogen: s.soilNitrogen,
+          clayPct: s.clayPct,
+          soilEstimatedAt: new Date(),
+          ...(fillPh ? { soilPh: s.soilPh, soilPhSource: "ESTIMATED_SOILGRIDS" } : {}),
+        },
+      });
+    }
   }
 
   const to = new Date();
