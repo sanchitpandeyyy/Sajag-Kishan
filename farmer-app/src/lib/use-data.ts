@@ -88,6 +88,18 @@ export interface Allocation {
   scheme: { name: string; unit: string };
 }
 
+export interface OpenScheme {
+  id: string;
+  name: string;
+  kind: string;
+  unit: string;
+  product: string | null;
+  fiscalYearBs: string;
+  totalStock: number | null;
+  remaining: number | null;
+  mine: { status: string; allocatedQty: number } | null;
+}
+
 export interface Bilingual {
   ne: string;
   en: string;

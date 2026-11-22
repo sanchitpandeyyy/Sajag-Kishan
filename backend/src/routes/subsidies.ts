@@ -24,6 +24,34 @@ export const subsidyRoutes = new Hono<AppEnv>()
     const farmerId = await farmerIdFor(c.get("user"));
     return c.json(await getPrisma().subsidyAllocation.findMany({ where: { farmerId }, include: { scheme: true }, orderBy: { createdAt: "desc" } }));
   })
+  .get("/open", async (c) => {
+    const prisma = getPrisma();
+    const farmerId = await farmerIdFor(c.get("user"));
+    const farmer = await prisma.farmer.findUnique({ where: { id: farmerId }, select: { farmingWard: { select: { localLevelId: true } } } });
+    if (!farmer) return c.json([]);
+    const schemes = await prisma.subsidyScheme.findMany({
+      where: { fiscalYearBs: currentFiscalYearBs(), OR: [{ localLevelId: farmer.farmingWard.localLevelId }, { localLevelId: null }] },
+      orderBy: { createdAt: "desc" },
+      include: { allocations: { select: { farmerId: true, allocatedQty: true, status: true } } },
+    });
+    return c.json(
+      schemes.map(({ allocations, criteria, ...s }) => {
+        const mine = allocations.find((a) => a.farmerId === farmerId);
+        const allocated = allocations.reduce((t, a) => t + a.allocatedQty, 0);
+        return {
+          id: s.id,
+          name: s.name,
+          kind: s.kind,
+          unit: s.unit,
+          product: (criteria as { product?: string } | null)?.product ?? null,
+          fiscalYearBs: s.fiscalYearBs,
+          totalStock: s.totalStock,
+          remaining: s.totalStock == null ? null : Math.max(0, Math.round(s.totalStock - allocated)),
+          mine: mine ? { status: String(mine.status), allocatedQty: mine.allocatedQty } : null,
+        };
+      }),
+    );
+  })
   .get("/schemes", requireRole(...OFFICER_ROLES), async (c) => {
     const schemes = await getPrisma().subsidyScheme.findMany({
       where: await schemeScope(c.get("user")),

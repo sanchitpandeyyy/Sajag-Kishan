@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, ErrorText, IconTile, Loading, Muted, type IconName } from "@/components/ui";
 import { dateText } from "@/lib/farm";
 import { useLang } from "@/lib/i18n";
-import { useData, type Allocation } from "@/lib/use-data";
+import { useData, type Allocation, type OpenScheme } from "@/lib/use-data";
 import { theme } from "@/theme";
 
 const c = theme.colors;
@@ -14,6 +14,15 @@ const c = theme.colors;
 export default function Subsidy() {
   const { tr, num, lang } = useLang();
   const subsidy = useData<Allocation[]>("/v1/subsidies/mine");
+  const open = useData<OpenScheme[]>("/v1/subsidies/open");
+  const programmes = (open.data ?? []).filter((s) => !s.mine);
+  const kindLabel: Record<string, string> = {
+    FERTILIZER: tr("मल", "Fertilizer"),
+    SEED: tr("बीउ", "Seed"),
+    PESTICIDE: tr("विषादी", "Pesticide"),
+    MACHINERY: tr("यन्त्र", "Machinery"),
+    OTHER: tr("अन्य", "Other"),
+  };
   const all = subsidy.data ?? [];
   const received = all.filter((a) => a.status === "DELIVERED");
   const coming = all.filter((a) => a.status === "PLANNED" || a.status === "APPROVED");
@@ -37,7 +46,14 @@ export default function Subsidy() {
         <Text style={styles.title}>{tr("अनुदान", "Subsidy")}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl refreshing={subsidy.loading} onRefresh={() => void subsidy.refresh()} tintColor={c.brand[800]} />}>
+      <ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl
+            refreshing={subsidy.loading}
+            onRefresh={() => {
+              void subsidy.refresh();
+              void open.refresh();
+            }}
+            tintColor={c.brand[800]}
+          />}>
         {subsidy.loading && !subsidy.data ? <Loading /> : null}
         {subsidy.error ? <ErrorText>{subsidy.error}</ErrorText> : null}
 
@@ -46,7 +62,11 @@ export default function Subsidy() {
             <View style={styles.empty}>
               <Ionicons name="gift-outline" size={48} color={c.inkMuted} />
               <Text style={styles.emptyTitle}>{tr("अहिलेसम्म अनुदान छैन", "No subsidy yet")}</Text>
-              <Muted>{tr("नयाँ अनुदान आएपछि यहाँ देखिन्छ", "New subsidies will show up here")}</Muted>
+              <Muted>
+                {programmes.length
+                  ? tr("तपाईंलाई अहिलेसम्म अनुदान छुट्याइएको छैन। तल तपाईंको पालिकाका खुला कार्यक्रम हेर्नुहोस्।", "Nothing has been allocated to you yet. See the open programmes in your municipality below.")
+                  : tr("कृषि शाखाले अनुदान कार्यक्रम खोलेपछि यहाँ देखिन्छ", "Programmes appear here once the agriculture office opens them")}
+              </Muted>
             </View>
           </Card>
         ) : null}
@@ -65,7 +85,32 @@ export default function Subsidy() {
         <Group title={tr("पाइसकेको", "Received")} items={received} state={state} num={num} tr={tr} lang={lang} />
         <Group title={tr("रद्द भएको", "Cancelled")} items={cancelled} state={state} num={num} tr={tr} lang={lang} />
 
-        {all.length > 0 ? (
+        {programmes.length > 0 ? (
+          <View style={{ gap: theme.space.sm }}>
+            <Text style={styles.section}>{tr("तपाईंको पालिकाका अनुदान कार्यक्रम", "Programmes in your municipality")}</Text>
+            {programmes.map((s) => (
+              <Card key={s.id}>
+                <View style={styles.head}>
+                  <IconTile name="megaphone" size={48} color={c.brand[700]} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {s.name}
+                    </Text>
+                    <Text style={styles.stateText}>
+                      {kindLabel[s.kind] ?? s.kind}
+                      {s.product ? ` · ${s.product}` : ""} · {tr(`आ.व. ${s.fiscalYearBs}`, `FY ${s.fiscalYearBs}`)}
+                    </Text>
+                    {s.remaining != null ? (
+                      <Muted>{tr(`बाँकी: ${num(s.remaining)} ${s.unit}`, `Remaining: ${num(s.remaining)} ${s.unit}`)}</Muted>
+                    ) : null}
+                  </View>
+                </View>
+              </Card>
+            ))}
+          </View>
+        ) : null}
+
+        {all.length > 0 || programmes.length > 0 ? (
           <View style={styles.help}>
             <Ionicons name="information-circle-outline" size={22} color={c.inkMuted} />
             <Text style={styles.helpText}>{tr("अनुदान बुझ्न आफ्नो पालिकाको कृषि शाखामा सम्पर्क गर्नुहोस्।", "To collect a subsidy, contact your municipality agriculture office.")}</Text>

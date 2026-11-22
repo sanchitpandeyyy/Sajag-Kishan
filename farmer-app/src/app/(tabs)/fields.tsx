@@ -13,7 +13,7 @@ import { currentSeason, landText } from "@/lib/farm";
 import { CROP_EN, useLang } from "@/lib/i18n";
 import { saveFieldLocation } from "@/lib/location";
 import { takeFieldPhoto } from "@/lib/photo";
-import { useData, type Allocation, type Parcel } from "@/lib/use-data";
+import { useData, type Allocation, type OpenScheme, type Parcel } from "@/lib/use-data";
 import { theme } from "@/theme";
 
 const c = theme.colors;
@@ -22,6 +22,7 @@ export default function FieldsTab() {
   const { tr, num, lang } = useLang();
   const parcels = useData<Parcel[]>("/v1/parcels");
   const subsidy = useData<Allocation[]>("/v1/subsidies/mine");
+  const openSchemes = useData<OpenScheme[]>("/v1/subsidies/open");
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [locating, setLocating] = useState<string | null>(null);
   const [shooting, setShooting] = useState<string | null>(null);
@@ -170,7 +171,11 @@ export default function FieldsTab() {
         {subsidy.data?.length === 0 ? (
           <View style={styles.subEmpty}>
             <Ionicons name="gift-outline" size={28} color={c.inkMuted} />
-            <Text style={styles.subEmptyText}>{tr("अहिलेसम्म अनुदान छैन", "No subsidy yet")}</Text>
+            <Text style={styles.subEmptyText}>
+              {openSchemes.data?.length
+                ? tr(`अहिलेसम्म अनुदान छैन। पालिकामा ${num(openSchemes.data.length)} कार्यक्रम खुला छ।`, `No subsidy yet. ${openSchemes.data.length} programmes open in your municipality.`)
+                : tr("अहिलेसम्म अनुदान छैन", "No subsidy yet")}
+            </Text>
           </View>
         ) : null}
         {subsidy.data?.map((a, i) => {

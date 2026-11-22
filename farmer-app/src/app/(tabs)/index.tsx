@@ -7,7 +7,7 @@ import { Card, IconTile, Loading, Muted, Screen, type IconName } from "@/compone
 import { dateText, isActiveOrUpcoming, TASK_EN } from "@/lib/farm";
 import { useLang } from "@/lib/i18n";
 import { notifyNewDangerAlerts, prepareReminders, remindersEnabled, scheduleTaskReminders } from "@/lib/reminders";
-import { useData, type Advisory, type Alert, type Allocation, type CalendarResponse, type Me, type Parcel } from "@/lib/use-data";
+import { useData, type Advisory, type Alert, type Allocation, type CalendarResponse, type Me, type OpenScheme, type Parcel } from "@/lib/use-data";
 import { theme } from "@/theme";
 
 const c = theme.colors;
@@ -18,6 +18,7 @@ export default function Home() {
   const parcels = useData<Parcel[]>("/v1/parcels");
   const feed = useData<{ alerts: Alert[]; advisories: Advisory[] }>("/v1/alerts");
   const subsidy = useData<Allocation[]>("/v1/subsidies/mine");
+  const openSchemes = useData<OpenScheme[]>("/v1/subsidies/open");
   const first = parcels.data?.[0];
   const calendar = useData<CalendarResponse>(first ? `/v1/calendar?parcelId=${first.id}` : null);
 
@@ -131,7 +132,7 @@ export default function Home() {
               <View style={styles.rowText}>
                 <Text style={styles.caption}>{tr("अनुदान", "Subsidy")}</Text>
                 <Text style={styles.big} numberOfLines={2}>
-                  {sub ? sub.scheme.name : tr("अहिलेसम्म छैन", "None yet")}
+                  {sub ? sub.scheme.name : openSchemes.data?.length ? tr(`${num(openSchemes.data.length)} कार्यक्रम खुला`, `${openSchemes.data.length} programmes open`) : tr("अहिलेसम्म छैन", "None yet")}
                 </Text>
                 {sub ? <Text style={[styles.state, { color: subGot ? c.brand[700] : c.warning }]}>{subGot ? tr("पाइयो", "Received") : tr("आउन बाँकी", "Coming")}</Text> : null}
               </View>

@@ -239,7 +239,12 @@ export default function FarmerDetailPage() {
 
             <Card icon={HandCoins} title={tr("अनुदान", "Subsidy")}>
               {f.allocations.length === 0 ? (
-                <p className="text-small text-muted">{tr("अहिलेसम्म कुनै अनुदान छैन।", "No subsidy yet.")}</p>
+                <p className="text-small text-muted">
+                  {tr("अहिलेसम्म कुनै अनुदान छैन।", "No subsidy yet.")}{" "}
+                  <Link href="/subsidy" className="font-semibold text-brand-700 hover:underline">
+                    {tr("अनुदान पृष्ठमा योजना बनाएर बाँडफाँड गर्नुहोस्", "Create a scheme and allocate on the Subsidy page")}
+                  </Link>
+                </p>
               ) : (
                 <ul className="divide-y divide-line text-small">
                   {f.allocations.map((a) => (
