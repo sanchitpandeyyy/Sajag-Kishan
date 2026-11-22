@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
+import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 import { getPrisma } from "./db";
 import { env } from "./env";
+import { bumpDataVersion } from "./lib/cache";
 import { ASSETS_BUCKET, deleteObject, getObjectBytes, putObject, storageConfigured } from "./lib/storage";
 import { auth, AUTH_BASE_PATH } from "./lib/auth";
 import { adviceRoutes } from "./routes/advice";
@@ -71,7 +73,14 @@ app.get("/health/ready", async (c) => {
 
 app.on(["GET", "POST"], `${AUTH_BASE_PATH}/*`, (c) => auth.handler(c.req.raw));
 
+// Any successful write invalidates cached reads (see lib/cache.ts).
+const invalidateOnWrite = createMiddleware<AppEnv>(async (c, next) => {
+  await next();
+  if (c.req.method !== "GET" && c.req.method !== "HEAD" && c.res.status < 400) bumpDataVersion();
+});
+
 const v1 = new Hono<AppEnv>()
+  .use("*", invalidateOnWrite)
   .route("/me", meRoutes)
   .route("/geo", geoRoutes)
   .route("/crops", cropRoutes)

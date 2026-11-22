@@ -1,4 +1,5 @@
 import { getPrisma, type Prisma } from "../db";
+import { bumpDataVersion } from "../lib/cache";
 import { assessDiseaseRisk, evaluateWeatherAlerts, fetchForecast } from "../engine";
 import { notifyWard } from "../notify";
 import { currentFiscalYearBs, currentSeason } from "../scope";
@@ -97,5 +98,6 @@ export async function refreshWardAlerts(wardIds: number[]) {
     for (let w = queue.shift(); w; w = queue.shift()) await processWard(w);
   });
   await Promise.all(workers);
+  if (created > 0) bumpDataVersion();
   return { wards: wards.length, created, pushed, failures };
 }

@@ -4,6 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { createAuthMiddleware } from "better-auth/api";
 import { admin, openAPI, phoneNumber } from "better-auth/plugins";
 import { getPrisma } from "../db";
+import { bumpDataVersion } from "./cache";
 import { env } from "../env";
 import { mobileSchema } from "../shared";
 import { ac, roles } from "./permissions";
@@ -52,6 +53,7 @@ export const auth = betterAuth({
       const userId = ctx.context.session?.user.id;
       if (!userId || ctx.context.returned instanceof Error) return;
       await getPrisma().user.update({ where: { id: userId }, data: { mustChangePassword: false } });
+      bumpDataVersion(); // /me caches mustChangePassword
     }),
   },
 

@@ -4,6 +4,8 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { getPrisma } from "../db";
+import { cached, MINUTE } from "../lib/cache";
+import { officerProfileLevel } from "../scope";
 import {
   fieldFlags,
   FLAG_WEIGHT,
@@ -17,7 +19,7 @@ import {
   type FieldStatus,
   type Productivity,
 } from "../engine/land-transparency";
-import type { AppEnv } from "../types";
+import type { AppEnv, AuthUser } from "../types";
 
 const query = z.object({
   localLevelId: z.coerce.number().int().positive().optional(),
@@ -28,22 +30,25 @@ type AreaByStatus = Record<FieldStatus, number>;
 const emptyAreas = (): AreaByStatus => ({ cultivated: 0, weak: 0, fallow: 0, unknown: 0 });
 
 async function resolveLocalLevel(user: { id: string; role: string }, requested?: number): Promise<number> {
-  const prisma = getPrisma();
-  const profile = await prisma.officerProfile.findUnique({ where: { userId: user.id }, select: { localLevelId: true } });
+  const profileLevel = await officerProfileLevel(user.id);
   if (user.role === "SUPER_ADMIN") {
     if (requested) return requested;
-    if (profile) return profile.localLevelId;
-    const any = await prisma.localLevel.findFirst({ where: { wards: { some: { farmingFarmers: { some: {} } } } }, select: { id: true } });
+    if (profileLevel != null) return profileLevel;
+    const any = await getPrisma().localLevel.findFirst({ where: { wards: { some: { farmingFarmers: { some: {} } } } }, select: { id: true } });
     if (!any) throw new HTTPException(404, { message: "no_local_level" });
     return any.id;
   }
-  if (!profile) throw new HTTPException(403, { message: "officer_profile_missing" });
-  return profile.localLevelId;
+  if (profileLevel == null) throw new HTTPException(403, { message: "officer_profile_missing" });
+  return profileLevel;
 }
 
 export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireRole(...OFFICER_ROLES)).get("/", zValidator("query", query), async (c) => {
   const user = c.get("user");
   const q = c.req.valid("query");
+  return c.json(await cached(`dashboard:${user.id}:${q.localLevelId ?? ""}:${q.seasons}`, 2 * MINUTE, () => buildDashboard(user, q)));
+});
+
+async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
   const prisma = getPrisma();
   const localLevelId = await resolveLocalLevel(user, q.localLevelId);
 
@@ -180,7 +185,7 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
   }
 
   const farmers = new Map(parcels.map((p) => [p.farmer.id, p.farmer]));
-  return c.json({
+  return {
     scope: {
       localLevel: { id: localLevel.id, nameNe: localLevel.nameNe, nameEn: localLevel.nameEn },
       district: { nameNe: localLevel.district.nameNe, nameEn: localLevel.district.nameEn },
@@ -214,5 +219,5 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
       municipalityMedianPeak: muniMedian,
       sources: { satellite: "Sentinel-2 L2A NDVI via Microsoft Planetary Computer", landCover: "ESA WorldCover 2021", declarations: "farmer app and officer records", subsidy: "delivered fertilizer allocations this fiscal year" },
     },
-  });
-});
+  };
+}

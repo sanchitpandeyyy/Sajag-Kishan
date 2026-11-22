@@ -1,4 +1,5 @@
 import { getPrisma, type Prisma } from "../db";
+import { bumpDataVersion } from "../lib/cache";
 import { wardClimate, type ClimateDayRow } from "../satellite/climate";
 import { landuseFeatures, LANDUSE_FEATURES } from "./features";
 import { predictLanduse } from "./landuse";
@@ -26,6 +27,7 @@ export async function predictParcel(parcelId: string) {
   await prisma.modelPrediction.create({
     data: { parcelId: p.id, model: "landuse", version: pred.version, label: pred.label, probability: pred.probability, features: { ...stored, source: pred.source, trainedOn: pred.trainedOn ?? null } as Prisma.InputJsonValue },
   });
+  bumpDataVersion();
   return pred;
 }
 

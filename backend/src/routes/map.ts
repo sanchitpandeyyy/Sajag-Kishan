@@ -3,6 +3,7 @@ import { demandByProduct, summarizeLand, type FarmerNeedInput, type ParcelFact }
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { cached, MINUTE } from "../lib/cache";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { currentFiscalYearBs, currentSeason, narrow, wardScope } from "../scope";
 import type { AppEnv } from "../types";
@@ -20,7 +21,7 @@ function satelliteGreen(ndvi: (number | null)[]): boolean | null {
   return v.length >= 3 ? false : null;
 }
 
-async function loadScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) {
+async function queryScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) {
   const fiscalYearBs = q.fiscalYearBs ?? currentFiscalYearBs();
   const season = q.season ?? currentSeason();
   const parcels = await getPrisma().parcel.findMany({
@@ -34,6 +35,8 @@ async function loadScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeo
   });
   return { parcels, fiscalYearBs, season };
 }
+
+const loadScope = (user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) => cached(`map:${user.id}:${JSON.stringify(q)}`, 2 * MINUTE, () => queryScope(user, q));
 
 export const mapRoutes = new Hono<AppEnv>()
   .use("*", requireAuth, requireRole(...OFFICER_ROLES))

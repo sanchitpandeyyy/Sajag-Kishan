@@ -1,22 +1,31 @@
 import { getPrisma, type Prisma } from "./db";
 import { HTTPException } from "hono/http-exception";
+import { cachedStatic, MINUTE } from "./lib/cache";
 import type { AuthUser } from "./types";
 
 export type WardWhere = Prisma.WardWhereInput;
 
+/** The municipality an officer works for, or null when the user has no officer profile. Cached: it is read on every officer request. */
+export function officerProfileLevel(userId: string): Promise<number | null> {
+  return cachedStatic(`officer-level:${userId}`, MINUTE, async () => {
+    const officer = await getPrisma().officerProfile.findUnique({ where: { userId }, select: { localLevelId: true } });
+    return officer?.localLevelId ?? null;
+  });
+}
+
 export async function wardScope(user: AuthUser): Promise<WardWhere> {
   if (user.role === "SUPER_ADMIN") return {};
   if (user.role !== "AGRICULTURE_OFFICER") throw new HTTPException(403, { message: "forbidden" });
-  const officer = await getPrisma().officerProfile.findUnique({ where: { userId: user.id }, select: { localLevelId: true } });
-  if (!officer) throw new HTTPException(403, { message: "officer_profile_missing" });
-  return { localLevelId: officer.localLevelId };
+  const localLevelId = await officerProfileLevel(user.id);
+  if (localLevelId == null) throw new HTTPException(403, { message: "officer_profile_missing" });
+  return { localLevelId };
 }
 
 export async function officerLocalLevelId(user: AuthUser): Promise<number | null> {
   if (user.role === "SUPER_ADMIN") return null;
-  const officer = await getPrisma().officerProfile.findUnique({ where: { userId: user.id }, select: { localLevelId: true } });
-  if (!officer) throw new HTTPException(403, { message: "officer_profile_missing" });
-  return officer.localLevelId;
+  const localLevelId = await officerProfileLevel(user.id);
+  if (localLevelId == null) throw new HTTPException(403, { message: "officer_profile_missing" });
+  return localLevelId;
 }
 
 export async function schemeScope(user: AuthUser): Promise<Prisma.SubsidySchemeWhereInput> {
@@ -25,9 +34,9 @@ export async function schemeScope(user: AuthUser): Promise<Prisma.SubsidySchemeW
 }
 
 export async function farmerIdFor(user: AuthUser): Promise<string> {
-  const farmer = await getPrisma().farmer.findUnique({ where: { userId: user.id }, select: { id: true } });
-  if (!farmer) throw new HTTPException(403, { message: "farmer_profile_missing" });
-  return farmer.id;
+  const id = await cachedStatic(`farmer-id:${user.id}`, 5 * MINUTE, async () => (await getPrisma().farmer.findUnique({ where: { userId: user.id }, select: { id: true } }))?.id ?? null);
+  if (!id) throw new HTTPException(403, { message: "farmer_profile_missing" });
+  return id;
 }
 
 export function narrow(scope: WardWhere, q: { wardId?: number; localLevelId?: number }): WardWhere {

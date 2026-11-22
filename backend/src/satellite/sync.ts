@@ -2,6 +2,7 @@ import { getPrisma, type Prisma } from "../db";
 import { backscatterAt, radarVerdict, searchRadarScenes } from "./sentinel1";
 import { greennessVerdict, indicesAt, searchScenes } from "./sentinel2";
 import { predictParcel } from "../ml/jobs";
+import { bumpDataVersion } from "../lib/cache";
 import { soilAt } from "./soilgrids";
 import { terrainAt } from "./terrain";
 import { syncWardClimate } from "./climate";
@@ -93,6 +94,7 @@ export async function syncParcel(parcelId: string, opts: { months?: number; maxS
   if (optical[0] && fallow != null) await prisma.satelliteObservation.update({ where: { id: optical[0].id }, data: { fallowFlag: fallow } });
   await ensureWardClimate(p.wardId).catch((e) => console.warn("[climate]", e instanceof Error ? e.message : e));
   if (stored > 0) await predictParcel(p.id).catch(() => null);
+  if (stored > 0) bumpDataVersion();
   return stored;
 }
 
