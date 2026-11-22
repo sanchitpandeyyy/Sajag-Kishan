@@ -27,6 +27,14 @@ export interface ChatAnswer {
 const DIGITS = "०१२३४५६७८९";
 const ne = (n: number | string) => String(n).replace(/[0-9]/g, (d) => DIGITS[Number(d)]!);
 
+/** True when the text is mostly Devanagari letters, so an English reply never reaches the Nepali bubble. */
+export function isNepali(text: string): boolean {
+  const letters = text.match(/\p{L}/gu) ?? [];
+  if (!letters.length) return false;
+  const devanagari = letters.filter((ch) => /[ऀ-ॿ]/.test(ch)).length;
+  return devanagari / letters.length >= 0.6;
+}
+
 function has(text: string, words: string[]) {
   return words.some((w) => text.includes(w));
 }
@@ -222,6 +230,7 @@ async function answerWithClaude(question: string, history: ChatTurn[], ctx: Farm
     ],
   });
   if (res.stop_reason === "refusal" || !res.parsed_output) throw new Error(`llm_no_answer:${res.stop_reason}`);
+  if (!isNepali(res.parsed_output.answerNe)) throw new Error("answer_not_nepali");
   return res.parsed_output;
 }
 
@@ -230,7 +239,9 @@ async function answerWithGemini(question: string, history: ChatTurn[], ctx: Farm
   const facts = ctx ? compactJson(factsFor(intent, ctx)) : "Not a farmer account: no farm facts.";
   const knowledge = hits.map((h) => `[${h.id}] ${h.titleEn}\n${h.textEn}`).join("\n\n") || "No passage matched.";
   const answerEn = await composeEnglish({ questionEn: understoodEn, history, facts, knowledge });
-  const answerNe = await toNepali(answerEn);
+  let answerNe = await toNepali(answerEn);
+  if (!isNepali(answerNe)) answerNe = await toNepali(answerEn); // one retry if the translation came back in English
+  if (!isNepali(answerNe)) throw new Error("answer_not_nepali");
   return { understoodEn, answerEn, answerNe };
 }
 
