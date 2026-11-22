@@ -30,7 +30,9 @@ export default function AssistantPage() {
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [turns, busy]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [turns, busy]);
 
   async function ask(q: string) {
     const message = q.trim();

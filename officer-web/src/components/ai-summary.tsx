@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Lightbulb, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Card, StateMessage } from "@/components/shell";
@@ -39,7 +39,7 @@ export function AiSummary() {
   return (
     <Card
       title={tr("यो डेटाको अर्थ", "What this data means")}
-      icon={Sparkles}
+      icon={Lightbulb}
       className="mb-6"
       action={
         <button onClick={regenerate} disabled={busy} className="flex min-h-10 items-center gap-1.5 rounded-control px-3 text-small font-semibold text-brand-700 hover:bg-fill disabled:opacity-50">
