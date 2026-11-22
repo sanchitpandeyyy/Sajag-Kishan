@@ -44,3 +44,17 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   }
   return res.json() as Promise<T>;
 }
+
+/** Fire-and-forget POST that never shows a toast (background bookkeeping such as read receipts). */
+export async function apiQuiet(path: string, body: unknown): Promise<void> {
+  try {
+    await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // ignore
+  }
+}

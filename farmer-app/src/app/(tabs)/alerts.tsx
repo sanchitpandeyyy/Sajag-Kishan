@@ -3,9 +3,10 @@
  * Same look as My fields: icon first, few words, a quiet grey strip for the details.
  */
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Card, ErrorText, IconTile, Loading, Muted, Screen, type IconName } from "@/components/ui";
+import { apiQuiet } from "@/lib/api";
 import { dateText } from "@/lib/farm";
 import { useLang } from "@/lib/i18n";
 import { useData, type Advisory, type Alert, type DiseaseAdvice, type Parcel } from "@/lib/use-data";
@@ -37,6 +38,10 @@ export default function AlertsTab() {
   const [filter, setFilter] = useState<Filter>("all");
 
   const alerts = feed.data?.alerts ?? [];
+  const unread = alerts.filter((a) => a.read === false).map((a) => a.id).join(",");
+  useEffect(() => {
+    if (unread) void apiQuiet("/v1/alerts/read", { alertIds: unread.split(",") });
+  }, [unread]);
   const notices = feed.data?.advisories ?? [];
   const risks = advice.data?.advice ?? [];
   const severe = alerts.some((a) => a.severity === "SEVERE");

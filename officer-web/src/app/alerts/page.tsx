@@ -22,6 +22,7 @@ interface Alert {
   messageNe: string;
   cropCodes: string[];
   evidence: Record<string, unknown> | null;
+  reach?: { farmers: number; pushed: number; read: number };
 }
 interface Advisory {
   id: string;
@@ -143,9 +144,16 @@ export default function AlertsPage() {
     setBusy("publish");
     setError(null);
     try {
-      await api("/v1/alerts/advisories", { method: "POST", body: JSON.stringify({ wardId: Number(form.wardId), titleNe: form.titleNe, bodyNe: form.bodyNe, cropCodes: [] }) });
+      const r = await api<{ reach: { farmers: number; pushed: number } | null }>("/v1/alerts/advisories", {
+        method: "POST",
+        body: JSON.stringify({ wardId: Number(form.wardId), titleNe: form.titleNe, bodyNe: form.bodyNe, cropCodes: [] }),
+      });
       setForm({ wardId: form.wardId, titleNe: "", bodyNe: "" });
-      setInfo(tr("सूचना प्रकाशित भयो।", "Advisory published."));
+      setInfo(
+        r.reach
+          ? tr(`सूचना प्रकाशित भयो। ${num(r.reach.farmers)} किसानमध्ये ${num(r.reach.pushed)} फोनमा पठाइयो।`, `Advisory published. Sent to ${r.reach.pushed} phones of ${r.reach.farmers} farmers.`)
+          : tr("सूचना प्रकाशित भयो। फोनमा पठाउन सकिएन।", "Advisory published. Could not send to phones."),
+      );
       await feed.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : tr("प्रकाशित गर्न सकिएन", "Could not publish"));
@@ -202,6 +210,14 @@ export default function AlertsPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm">{lang === "en" && en ? en[1] : a.messageNe}</p>
+                  {a.reach && (
+                    <p className="mt-1 text-xs text-ink-muted">
+                      {tr(
+                        `${num(a.reach.farmers)} किसान, ${num(a.reach.pushed)} लाई फोनमा पुग्यो, ${num(a.reach.read)} ले पढे`,
+                        `${a.reach.farmers} farmers, ${a.reach.pushed} reached by push, ${a.reach.read} read`,
+                      )}
+                    </p>
+                  )}
                   {a.evidence && evidenceText(a.evidence, tr, num, date) && (
                     <p className="mt-1 text-xs text-ink-muted">
                       {tr("कारण", "Why")}: {evidenceText(a.evidence, tr, num, date)}

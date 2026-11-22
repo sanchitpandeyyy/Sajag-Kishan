@@ -6,7 +6,7 @@
  */
 import { getPrisma, type Prisma } from "../db";
 import { assessDiseaseRisk, evaluateWeatherAlerts, fetchForecast } from "../engine";
-import { sendPush } from "../push";
+import { notifyWard } from "../notify";
 import { currentFiscalYearBs, currentSeason } from "../scope";
 
 interface AlertLike {
@@ -43,7 +43,16 @@ export async function refreshWardAlerts(wardIds: number[]) {
       },
     });
     created++;
-    pushed += await pushAlertToWard(alert.id, wardId, alert.cropCodes, a);
+    const r = await notifyWard({
+      wardId,
+      cropCodes: alert.cropCodes,
+      title: a.titleNe,
+      body: a.messageNe,
+      priority: a.severity === "SEVERE" ? "high" : "default",
+      data: { alertId: alert.id, screen: "/alerts" },
+      alertId: alert.id,
+    });
+    pushed += r.pushed;
   }
 
   for (const ward of wards) {
@@ -85,25 +94,4 @@ export async function refreshWardAlerts(wardIds: number[]) {
     }
   }
   return { wards: wards.length, created, pushed, failures };
-}
-
-/** Push only to farmers in the ward, and for crop-specific alerts only to growers of that crop. */
-async function pushAlertToWard(alertId: string, wardId: number, cropCodes: string[], a: AlertLike): Promise<number> {
-  const prisma = getPrisma();
-  const farmers = await prisma.farmer.findMany({
-    where: {
-      parcels: { some: { wardId, ...(cropCodes.length ? { declarations: { some: { crop: { code: { in: cropCodes } } } } } : {}) } },
-    },
-    select: { userId: true, user: { select: { pushTokens: { select: { token: true } } } } },
-  });
-  const messages = farmers.flatMap((f) =>
-    f.user.pushTokens.map((t) => ({ to: t.token, title: a.titleNe, body: a.messageNe, data: { alertId, screen: "/alerts" }, priority: a.severity === "SEVERE" ? ("high" as const) : ("default" as const) })),
-  );
-  if (!messages.length) return 0;
-  const ok = await sendPush(messages);
-  await prisma.alertDelivery.createMany({
-    data: farmers.map((f) => ({ alertId, userId: f.userId, channel: "push", sentAt: ok ? new Date() : null, error: ok ? null : "push_failed" })),
-    skipDuplicates: true,
-  });
-  return ok ? messages.length : 0;
 }

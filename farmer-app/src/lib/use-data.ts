@@ -68,6 +68,7 @@ export interface Alert {
   validFrom: string;
   titleNe: string;
   messageNe: string;
+  read?: boolean;
 }
 
 export interface Advisory {
