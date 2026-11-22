@@ -4,7 +4,9 @@ import { ArrowLeft, CheckCircle2, HandCoins, MapPin, MapPinOff, User, XCircle } 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { FieldImages } from "@/components/field-images";
 import { FieldPhotos } from "@/components/field-photos";
+import { ParcelMap } from "@/components/parcel-map";
 import { FieldGreenness } from "@/components/satellite";
 import { Card, inputClass, PrimaryButton, Shell, StateMessage } from "@/components/shell";
 import { api } from "@/lib/api";
@@ -13,6 +15,7 @@ import { CROP_EN } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 
 type Season = keyof typeof SEASON_LABEL;
+
 interface FarmerDetail {
   id: string;
   nameNe: string;
@@ -39,6 +42,9 @@ interface FarmerDetail {
     irrigation: string;
     verification: "UNVERIFIED" | "VERIFIED" | "DISPUTED";
     mapped: boolean;
+    lat: number | null;
+    lng: number | null;
+    localName: string | null;
     elevationM: number | null;
     declarations: { id: string; fiscalYearBs: string; season: Season; crop: { code: string; nameNe: string; nameEn: string }; sownAreaM2: number; isFallow: boolean; source: string }[];
   }[];
@@ -125,6 +131,17 @@ export default function FarmerDetailPage() {
               </Card>
             )}
 
+            {f.parcels.some((p) => p.lat != null && p.lng != null) && (
+              <Card icon={MapPin} title={tr("खेतहरू नक्सामा", "Fields on the map")}>
+                <ParcelMap
+                  height="h-[320px]"
+                  features={f.parcels
+                    .filter((p) => p.lat != null && p.lng != null)
+                    .map((p) => ({ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [p.lng!, p.lat!] as [number, number] }, properties: { id: p.id, ward: p.ward, areaM2: p.areaM2, verification: p.verification, farmerNameNe: "", tole: p.localName ?? p.tole, crop: p.declarations[0]?.crop.code ?? null, cropNe: p.declarations[0]?.crop.nameNe ?? null } }))}
+                />
+              </Card>
+            )}
+
             {f.parcels.map((p, i) => {
               const v = VERIFICATION[p.verification];
               return (
@@ -152,6 +169,12 @@ export default function FarmerDetailPage() {
                   </p>
 
                   {p.mapped && <FieldGreenness parcelId={p.id} />}
+                  {p.mapped && (
+                    <div className="mt-4 border-t border-line pt-4">
+                      <h3 className="mb-3 font-heading text-h4 text-ink">{tr("भू-उपग्रह तस्बिर", "Satellite pictures")}</h3>
+                      <FieldImages parcelId={p.id} limit={3} />
+                    </div>
+                  )}
                   <FieldPhotos parcelId={p.id} />
 
                   <div className="mt-5 border-t border-line pt-4">

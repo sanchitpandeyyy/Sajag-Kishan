@@ -9,6 +9,7 @@ import { useLang } from "@/lib/i18n";
 
 export type MetricKey = "households" | "verifiedPct" | "classifiedPct" | "landHa" | "irrigatedPct" | "productionMt" | "livestockUnits";
 
+/** Raw figures for one area. A null means the source hides it (fewer than 5 households). */
 export interface AreaFigures {
   households: number | null;
   verified: number | null;
@@ -24,6 +25,7 @@ export interface Area {
   ne: string;
   en: string;
   d: string;
+  /** Border path to stroke, when `d` is made of smaller areas (provinces are unions of districts). */
   outline?: string;
   href?: string;
   figures: AreaFigures;
@@ -41,9 +43,14 @@ const METRICS: { key: MetricKey; ne: string; en: string; digits: number; pct?: b
   { key: "livestockUnits", ne: "पशुधन एकाइ", en: "Livestock units", digits: 1, value: (f) => f.livestockUnits },
 ];
 
+/** Five equal groups (quantiles), pale to dark, as on the source dashboard. */
 const SHADES = ["#dbe9d6", "#b9d9ad", "#8cc96a", "#4a9f1e", "#075426"];
 const NO_DATA = "#e1e4ea";
 
+/**
+ * Map, metric pills and a ranked list, in the style of the ministry's public dashboard.
+ * Used for the provinces of Nepal and for the districts inside one province.
+ */
 export function AreaExplorer({ heading, listTitleNe, listTitleEn, areas, viewBox }: { heading: { ne: string; en: string }; listTitleNe: string; listTitleEn: string; areas: Area[]; viewBox: string }) {
   const { tr, num } = useLang();
   const [key, setKey] = useState<MetricKey>("households");
@@ -82,6 +89,7 @@ export function AreaExplorer({ heading, listTitleNe, listTitleEn, areas, viewBox
               const v = metric.value(s.figures);
               const fill = v == null ? NO_DATA : SHADES[bucketOf.get(s.id) ?? 0];
               const dim = hover && hover !== s.id ? 0.55 : 1;
+              // Province shapes are unions of districts, so fill them without inner lines and draw only the border.
               const path = (
                 <g opacity={dim} className={s.href ? "cursor-pointer" : undefined} onMouseEnter={() => setHover(s.id)} onMouseLeave={() => setHover(null)}>
                   <path d={s.d} fill={fill} stroke={s.outline ? fill : "#ffffff"} strokeWidth={s.outline ? 0.8 : hover === s.id ? 3 : 1.5} strokeLinejoin="round">

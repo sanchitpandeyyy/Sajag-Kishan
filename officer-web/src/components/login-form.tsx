@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Officer / admin sign-in (mobile + password, no OTP). Used on the landing page and /login.
+ * Temporary passwords must be replaced before entering the admin side.
+ * On success → /dashboard (or a safe ?next= path).
+ */
 import { useEffect, useState } from "react";
 import { authClient, authErrorNe, isOfficerRole } from "@/lib/auth-client";
 import { buttonClass } from "@/components/ui";
@@ -17,11 +22,13 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Sent here because the password is still temporary: start over so we have the current password.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("change") === "1") {
       void authClient.signOut();
       setError(tr("अस्थायी पासवर्डले लगइन गरी आफ्नै पासवर्ड बनाउनुहोस्।", "Sign in with your temporary password, then set your own."));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function goNext() {
@@ -46,8 +53,9 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
       if (error) return setError(errorText(error.code, error.message));
       const user = data?.user as { role?: string; mustChangePassword?: boolean } | undefined;
       if (!isOfficerRole(user?.role)) {
+        // Same message as a wrong password: never reveal that a non-officer account exists.
         await authClient.signOut();
-        return setError(tr("यो पोर्टल कृषि शाखाका लागि हो। कृषकले मोबाइल एप प्रयोग गर्नुहोस्।", "This portal is for agriculture offices. Farmers, please use the mobile app."));
+        return setError(errorText("INVALID_PHONE_NUMBER_OR_PASSWORD"));
       }
       if (user?.mustChangePassword) return setStep("change");
       goNext();

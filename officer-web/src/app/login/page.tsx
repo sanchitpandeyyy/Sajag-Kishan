@@ -5,6 +5,7 @@ import { BrandMark } from "@/components/brand";
 import { LoginForm } from "@/components/login-form";
 import { LangToggle, useLang } from "@/lib/i18n";
 
+/** Standalone sign in (used by redirects such as ?next= and ?change=1). The landing page has the same form. */
 export default function LoginPage() {
   const { tr } = useLang();
   return (

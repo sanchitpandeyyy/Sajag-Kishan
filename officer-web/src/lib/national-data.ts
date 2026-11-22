@@ -1,3 +1,10 @@
+/**
+ * National snapshot copied from the public dashboard of the Ministry of Agriculture and
+ * Livestock Development (Farmer Registry): https://farmer.moald.gov.np/public/dashboard/
+ *
+ * Read on 2083-08-05 BS. These are static public figures, kept here to show the research
+ * behind Sajag Kishan. Refresh by hand when the ministry updates its page.
+ */
 
 export const NATIONAL_SOURCE = {
   url: "https://farmer.moald.gov.np/public/dashboard/",
@@ -49,12 +56,14 @@ export interface Slice {
   value: number;
 }
 
+/** Household heads by gender. */
 export const GENDER: Slice[] = [
   { ne: "पुरुष", en: "Male", value: 1_359_696 },
   { ne: "महिला", en: "Female", value: 1_319_963 },
   { ne: "अन्य", en: "Other", value: 498 },
 ];
 
+/** Farmer classes under Schedule 5 of the Agribusiness Promotion Regulation, 2080. */
 export const TIERS: Slice[] = [
   { ne: "निर्वाहमुखी किसान", en: "Subsistence farmers", value: 4_555 },
   { ne: "साना व्यावसायिक किसान", en: "Small commercial farmers", value: 48_650 },
@@ -62,6 +71,7 @@ export const TIERS: Slice[] = [
   { ne: "ठूला व्यावसायिक किसान", en: "Large commercial farmers", value: 6_784 },
 ];
 
+/** Production by crop group, metric tonnes. */
 export const CROP_GROUPS: Slice[] = [
   { ne: "खाद्यान्न बाली", en: "Food grains", value: 24_675_688.7 },
   { ne: "औद्योगिक बाली", en: "Industrial crops", value: 1_860_856.58 },
@@ -79,6 +89,7 @@ export const CROP_GROUPS: Slice[] = [
   { ne: "पुष्प खेती", en: "Flowers", value: 954.96 },
 ];
 
+/** Animal counts by kind (fish excluded). */
 export const LIVESTOCK: Slice[] = [
   { ne: "कुखुरा", en: "Poultry", value: 22_022_295 },
   { ne: "बाख्रा, च्याङ्ग्रा", en: "Goats", value: 8_141_362 },
@@ -90,6 +101,7 @@ export const LIVESTOCK: Slice[] = [
   { ne: "अन्य पशु", en: "Other animals", value: 166_692 },
 ];
 
+/** Registered land by recorded use, hectares. */
 export const LAND_USE: Slice[] = [
   { ne: "उल्लेख नभएको", en: "Not specified", value: 1_311_065.77 },
   { ne: "पशुपन्छी र मत्स्यपालन", en: "Livestock and fisheries", value: 14_399.75 },
@@ -100,12 +112,14 @@ export const LAND_USE: Slice[] = [
   { ne: "बाँझो", en: "Fallow", value: 96.3 },
 ];
 
+/** Subsidy recorded against farmers, NPR. */
 export const SUBSIDY: Slice[] = [
   { ne: "कृषि", en: "Agriculture", value: 6_526_197.5 },
   { ne: "पशुपन्छी पालन", en: "Livestock", value: 1_289_000 },
   { ne: "अन्य", en: "Other", value: 200_000 },
 ];
 
+/** Registered households per day, 2083-06-05 to 2083-08-05 BS (62 daily readings). */
 export const REGISTRATION_TREND = {
   fromBs: "२०८३-०६-०५",
   toBs: "२०८३-०८-०५",
@@ -118,6 +132,10 @@ export const REGISTRATION_TREND = {
   ],
 };
 
+/**
+ * The 62 dates (BS, as YYYY-MM-DD) behind every daily registration series, one per reading.
+ * Month 06 has 31 days and month 07 has 30 days in this window, which matches the labels on the source chart.
+ */
 export const TREND_DAYS: string[] = (() => {
   const monthLength: Record<number, number> = { 6: 31, 7: 30, 8: 30 };
   const out: string[] = [];

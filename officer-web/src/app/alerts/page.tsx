@@ -1,26 +1,32 @@
 "use client";
 
-import { AlertTriangle, BellRing, CloudRain, Megaphone, Newspaper, RefreshCw, ShieldAlert, Snowflake, Sun, Wind } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, BellRing, Bug, CloudRain, Megaphone, Newspaper, RefreshCw, ShieldAlert, Snowflake, Sun, Wind } from "lucide-react";
+import { useState } from "react";
 import { Card, inputClass, PrimaryButton, SecondaryButton, Shell, StateMessage, useMe } from "@/components/shell";
 import { api } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 
+interface WardLabel {
+  number: number;
+  localLevel: { id: number; nameNe: string; nameEn: string };
+}
 interface Alert {
   id: string;
   wardId: number;
+  ward: WardLabel | null;
   type: string;
   severity: "INFO" | "WARNING" | "SEVERE";
   validFrom: string;
   titleNe: string;
   messageNe: string;
   cropCodes: string[];
-  evidence: Record<string, number | string> | null;
+  evidence: Record<string, unknown> | null;
 }
 interface Advisory {
   id: string;
   wardId: number | null;
+  ward: WardLabel | null;
   titleNe: string;
   bodyNe: string;
   publishedAt: string;
@@ -31,6 +37,7 @@ interface Ward {
   number: number;
 }
 
+/** English text for engine alert types (Nepali comes from the engine). */
 const TYPE_EN: Record<string, readonly [string, string]> = {
   HEAVY_RAIN: ["Heavy rain likely", "Drain fields and postpone fertilizer or pesticide application."],
   FLOOD_RISK: ["Flood / landslide risk", "A lot of rain over three days. Move livestock and stored grain to safety."],
@@ -40,6 +47,10 @@ const TYPE_EN: Record<string, readonly [string, string]> = {
   STRONG_WIND: ["Strong wind likely", "Harvest ripe crops early and secure tunnels and plastic."],
   LATE_BLIGHT: ["Late blight risk", "Inspect potato and tomato regularly and ask a technician about prevention."],
   RICE_BLAST: ["Rice blast risk", "Avoid excess nitrogen, inspect fields and report symptoms to the agriculture office."],
+  BACTERIAL_LEAF_BLIGHT: ["Bacterial leaf blight risk", "Drain standing water after storms and avoid extra nitrogen."],
+  YELLOW_RUST: ["Yellow rust risk", "Check wheat leaves twice a week for yellow stripes of powder."],
+  FALL_ARMYWORM: ["Fall armyworm risk", "Check maize whorls for holes and frass twice a week."],
+  MUSTARD_APHID: ["Mustard aphid risk", "Cool, dry weeks. Check flowers and tips twice a week."],
 };
 
 const ICON: Record<string, typeof CloudRain> = {
@@ -51,14 +62,61 @@ const ICON: Record<string, typeof CloudRain> = {
   STRONG_WIND: Wind,
   LATE_BLIGHT: ShieldAlert,
   RICE_BLAST: ShieldAlert,
+  BACTERIAL_LEAF_BLIGHT: ShieldAlert,
+  YELLOW_RUST: ShieldAlert,
+  FALL_ARMYWORM: Bug,
+  MUSTARD_APHID: Bug,
 };
+
+const LEVEL: Record<string, readonly [string, string]> = { HIGH: ["उच्च", "high"], MEDIUM: ["मध्यम", "medium"], LOW: ["कम", "low"] };
+
+/**
+ * Plain-language reason for an alert, built from the engine's evidence fields.
+ * Unknown fields are skipped, so a new rule never shows raw data.
+ */
+function evidenceText(ev: Record<string, unknown>, tr: (ne: string, en: string) => string, num: (n: number, d?: number) => string, day: (iso: string) => string): string {
+  const n = (k: string) => (typeof ev[k] === "number" ? (ev[k] as number) : null);
+  const parts: string[] = [];
+  const days = Array.isArray(ev.days) ? (ev.days as string[]) : null;
+  if (days?.length) {
+    const span = days.length > 1 ? `${day(days[0]!)} - ${day(days.at(-1)!)}` : day(days[0]!);
+    parts.push(tr(`अर्को ${num(days.length)} दिन रोगलाई अनुकूल मौसम (${span})`, `weather favours it on ${days.length} day${days.length > 1 ? "s" : ""} (${span})`));
+  }
+  if (typeof ev.level === "string" && LEVEL[ev.level]) {
+    const [ne, en] = LEVEL[ev.level]!;
+    const score = n("score");
+    parts.push(tr(`जोखिम ${ne}${score != null ? ` (${num(Math.round(score * 100))}%)` : ""}`, `risk ${en}${score != null ? ` (${Math.round(score * 100)}%)` : ""}`));
+  }
+  const past = n("pastAlertsInWard");
+  if (past) parts.push(tr(`यो वडामा पहिले ${num(past)} पटक देखिएको`, `seen ${past} time${past > 1 ? "s" : ""} before in this ward`));
+  const add = (k: string, ne: (v: string) => string, en: (v: string) => string, digits = 0) => {
+    const v = n(k);
+    if (v != null) parts.push(tr(ne(num(v, digits)), en(String(Math.round(v * 10 ** digits) / 10 ** digits))));
+  };
+  add("precipitationMm", (v) => `एकै दिनमा ${v} मि.मि. वर्षा`, (v) => `${v} mm of rain in one day`);
+  add("threeDayPrecipitationMm", (v) => `३ दिनमा ${v} मि.मि. वर्षा`, (v) => `${v} mm of rain over 3 days`);
+  add("tenDayPrecipitationMm", (v) => `१० दिनमा जम्मा ${v} मि.मि. वर्षा`, (v) => `only ${v} mm of rain in 10 days`, 1);
+  add("tempMinC", (v) => `न्यूनतम तापक्रम ${v}°C`, (v) => `low of ${v}°C`, 1);
+  add("tempMaxC", (v) => `अधिकतम तापक्रम ${v}°C`, (v) => `high of ${v}°C`, 1);
+  add("windGustMaxKmh", (v) => `${v} कि.मि./घण्टाको हावा`, (v) => `gusts of ${v} km/h`);
+  add("favourableHours", (v) => `${v} घण्टा रोगलाई अनुकूल`, (v) => `${v} hours favourable to the disease`);
+  const h1 = n("humidHoursDay1");
+  const h2 = n("humidHoursDay2");
+  if (h1 != null && h2 != null) parts.push(tr(`लगातार दुई दिन ${num(h1)} र ${num(h2)} घण्टा ओसिलो`, `${h1} and ${h2} humid hours on two days in a row`));
+  return parts.join(", ");
+}
 
 export default function AlertsPage() {
   const { tr, num, lang } = useLang();
   const { data: me } = useMe();
   const feed = useApi<{ alerts: Alert[]; advisories: Advisory[] }>("/v1/alerts");
   const wards = useApi<Ward[]>(me?.officer ? `/v1/geo/wards?localLevelId=${me.officer.localLevelId}` : null);
-  const wardNo = useMemo(() => new Map((wards.data ?? []).map((w) => [w.id, w.number])), [wards.data]);
+  // "Ward 4", plus the municipality when it is not the officer's own (super admin sees all of them).
+  const wardLabel = (w: WardLabel | null) => {
+    if (!w) return tr("वडा थाहा छैन", "Ward unknown");
+    const ward = tr(`वडा ${num(w.number)}`, `Ward ${w.number}`);
+    return w.localLevel.id === me?.officer?.localLevelId ? ward : `${tr(w.localLevel.nameNe, w.localLevel.nameEn)}, ${ward}`;
+  };
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +155,8 @@ export default function AlertsPage() {
   }
 
   const date = (iso: string) => new Date(iso).toLocaleDateString(lang === "ne" ? "ne-NP" : "en-GB", { day: "numeric", month: "short" });
-  const severityClass = { SEVERE: "border-danger bg-danger/5", WARNING: "border-warning bg-warning/10", INFO: "border-info bg-info/5" } as const;
+  // Severity shows in the icon and label colour only: plain white cards, no coloured border or tint.
+  const severityClass = { SEVERE: "text-danger", WARNING: "text-warning", INFO: "text-info" } as const;
   const severityLabel = { SEVERE: tr("खतरा", "Danger"), WARNING: tr("सचेत", "Warning"), INFO: tr("जानकारी", "Info") } as const;
 
   return (
@@ -132,23 +191,20 @@ export default function AlertsPage() {
               const Icon = ICON[a.type] ?? AlertTriangle;
               const en = TYPE_EN[a.type];
               return (
-                <li key={a.id} className={`rounded-lg border-l-4 p-3 ${severityClass[a.severity]}`}>
+                <li key={a.id} className="rounded-control border border-line bg-white p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="flex items-center gap-2 font-semibold">
-                      <Icon className="size-4 shrink-0" aria-hidden />
-                      {severityLabel[a.severity]}: {lang === "en" && en ? en[0] : a.titleNe}
+                    <p className="flex items-center gap-2 font-semibold text-ink">
+                      <Icon className={`size-5 shrink-0 ${severityClass[a.severity]}`} aria-hidden />
+                      <span className={severityClass[a.severity]}>{severityLabel[a.severity]}:</span> {lang === "en" && en ? en[0] : a.titleNe}
                     </p>
                     <span className="shrink-0 text-xs text-ink-muted">
-                      {tr("वडा", "Ward")} {num(wardNo.get(a.wardId) ?? 0)}, {date(a.validFrom)}
+                      {wardLabel(a.ward)}, {date(a.validFrom)}
                     </span>
                   </div>
                   <p className="mt-1 text-sm">{lang === "en" && en ? en[1] : a.messageNe}</p>
-                  {a.evidence && (
+                  {a.evidence && evidenceText(a.evidence, tr, num, date) && (
                     <p className="mt-1 text-xs text-ink-muted">
-                      {tr("आधार", "Based on")}:{" "}
-                      {Object.entries(a.evidence)
-                        .map(([k, v]) => `${k} ${v}`)
-                        .join(", ")}
+                      {tr("कारण", "Why")}: {evidenceText(a.evidence, tr, num, date)}
                     </p>
                   )}
                 </li>
@@ -194,7 +250,7 @@ export default function AlertsPage() {
                   <p className="font-semibold">{a.titleNe}</p>
                   <p className="text-ink-muted">{a.bodyNe}</p>
                   <p className="mt-1 text-xs text-ink-muted">
-                    {a.officer.fullName}, {a.wardId ? `${tr("वडा", "Ward")} ${num(wardNo.get(a.wardId) ?? 0)}, ` : ""}
+                    {a.officer.fullName}, {a.ward ? `${wardLabel(a.ward)}, ` : ""}
                     {date(a.publishedAt)}
                   </p>
                 </li>

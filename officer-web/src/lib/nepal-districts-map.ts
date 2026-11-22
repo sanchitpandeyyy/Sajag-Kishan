@@ -1,3 +1,4 @@
+/** District outlines (pre-projected to the 1000 x 575 national box), simplified from the public MoALD dashboard geometry. */
 export interface DistrictShape {
   province: string;
   code: string;

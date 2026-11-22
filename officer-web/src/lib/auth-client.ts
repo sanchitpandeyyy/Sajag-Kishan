@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Better Auth client for the officer web app (no OTP anywhere).
+ * Requests go to /api/v1/auth/* on this origin; next.config.ts proxies them to the
+ * backend, so the session cookie is first-party.
+ */
 import { adminClient, inferAdditionalFields, phoneNumberClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { ac, roles } from "./permissions";
@@ -17,6 +22,7 @@ export const authClient = createAuthClient({
 
 export const { useSession, signOut } = authClient;
 
+/** Roles allowed into the officer web app. */
 export const OFFICER_ROLES = ["AGRICULTURE_OFFICER", "SUPER_ADMIN"] as const;
 export const isOfficerRole = (role: string | null | undefined) => !!role && (OFFICER_ROLES as readonly string[]).includes(role);
 

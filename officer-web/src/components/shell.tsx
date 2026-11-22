@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { BellRing, FileBarChart, HandCoins, Landmark, LayoutDashboard, LogOut, Map, ShieldCheck, Upload, Users } from "lucide-react";
+import { BellRing, FileBarChart, HandCoins, LayoutDashboard, Microscope, MessageCircleQuestion, LogOut, Map, ShieldCheck, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand";
@@ -13,10 +13,11 @@ import { useApi } from "@/lib/use-api";
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, ne: "ड्यासबोर्ड", en: "Dashboard" },
   { href: "/map", icon: Map, ne: "कृषि नक्सा", en: "KrishiMap" },
-  { href: "/national", icon: Landmark, ne: "राष्ट्रिय तथ्याङ्क", en: "National data" },
+  { href: "/analytics", icon: Microscope, ne: "उन्नत विश्लेषण", en: "Advanced analytics" },
   { href: "/farmers", icon: Users, ne: "कृषक र खाता", en: "Farmers & accounts" },
   { href: "/subsidy", icon: HandCoins, ne: "अनुदान वितरण", en: "Subsidy" },
   { href: "/alerts", icon: BellRing, ne: "सूचना / चेतावनी", en: "Alerts & advisories" },
+  { href: "/questions", icon: MessageCircleQuestion, ne: "किसानका प्रश्न", en: "Farmers' questions" },
   { href: "/import", icon: Upload, ne: "दर्ता आयात", en: "Registry import" },
   { href: "/reports", icon: FileBarChart, ne: "प्रतिवेदन", en: "Reports" },
   { href: "/officers", icon: ShieldCheck, ne: "कृषि अधिकृतहरू", en: "Officers", adminOnly: true },
@@ -39,6 +40,7 @@ export function Shell({ title, subtitle, action, children }: { title: string; su
   const { data: me } = useMe();
   const nav = NAV.filter((n) => !("adminOnly" in n) || me?.role === "SUPER_ADMIN");
 
+  // A temporary password must be replaced before using the admin side.
   if (me?.mustChangePassword && typeof window !== "undefined") window.location.href = "/login?change=1";
 
   async function logout() {
@@ -115,6 +117,7 @@ export function Shell({ title, subtitle, action, children }: { title: string; su
   );
 }
 
+/** Plain icon for headings and figures. Farmers and officers scan icons before words, so use one beside every title. No tinted tile behind it. */
 export function Glyph({ icon: Icon, className = "size-6" }: { icon: LucideIcon; className?: string }) {
   return <Icon className={`${className} shrink-0 text-brand-700`} strokeWidth={1.75} aria-hidden />;
 }
