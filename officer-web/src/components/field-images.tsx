@@ -10,6 +10,7 @@ import { useState } from "react";
 import { NdviScale } from "@/components/area-image";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
+import { storedSat } from "@/lib/stored-image";
 
 interface FieldImagesResponse {
   parcel: { id: string; localName: string | null; landCover: string | null; croplandShare: number | null };
@@ -84,7 +85,7 @@ export function FieldImages({ parcelId, limit = 6 }: { parcelId: string; limit?:
                 {(view === "both" ? (["trueColor", "ndvi"] as const) : ([view] as const)).map((k) => (
                   <div key={k} className="relative aspect-square overflow-hidden rounded-control bg-fill">
                     {/* eslint-disable-next-line @next/next/no-img-element -- remote tiles rendered on demand */}
-                    <img src={im[k]} alt={`${k === "ndvi" ? "NDVI" : tr("साँचो रङ", "True colour")} ${im.date}`} loading="lazy" className="absolute inset-0 size-full object-cover" />
+                    <img src={storedSat(im[k])} alt={`${k === "ndvi" ? "NDVI" : tr("साँचो रङ", "True colour")} ${im.date}`} loading="lazy" className="absolute inset-0 size-full object-cover" />
                     <span className="absolute top-1/2 left-1/2 block size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1.5px_rgba(0,0,0,0.6)]" aria-hidden />
                   </div>
                 ))}

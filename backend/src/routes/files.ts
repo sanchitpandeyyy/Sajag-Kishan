@@ -12,7 +12,7 @@ import { Hono } from "hono";
 import { audit } from "../audit";
 import { OFFICER_ROLES, requireAuth } from "../auth";
 import { getPrisma } from "../db";
-import { ALLOWED_CONTENT_TYPES, ASSETS_BUCKET, MAX_UPLOAD_BYTES, objectKey, presignedUrl, putObject, storageConfigured } from "../lib/storage";
+import { ALLOWED_CONTENT_TYPES, ASSETS_BUCKET, deleteObject, MAX_UPLOAD_BYTES, objectKey, presignedUrl, putObject, storageConfigured } from "../lib/storage";
 import { farmerIdFor, wardScope } from "../scope";
 import type { AppEnv, AuthUser } from "../types";
 
@@ -67,4 +67,15 @@ export const fileRoutes = new Hono<AppEnv>()
     const row = await getPrisma().fileObject.findUnique({ where: { id: c.req.param("id") } });
     if (!row || !(await canAccess(user, row.entity, row.entityId))) return c.json({ error: "not_found" }, 404);
     return c.json({ url: await presignedUrl(row.key), expiresIn: 900 });
+  })
+  .delete("/:id", async (c) => {
+    const user = c.get("user");
+    const prisma = getPrisma();
+    const row = await prisma.fileObject.findUnique({ where: { id: c.req.param("id") } });
+    if (!row || !(await canAccess(user, row.entity, row.entityId))) return c.json({ error: "not_found" }, 404);
+    if (row.uploadedById !== user.id && !OFFICER_ROLES.includes(user.role)) return c.json({ error: "forbidden" }, 403);
+    await deleteObject(row.key).catch(() => undefined);
+    await prisma.fileObject.delete({ where: { id: row.id } });
+    await audit(user.id, "file.delete", "FileObject", row.id, { entity: row.entity, entityId: row.entityId, key: row.key }, null);
+    return c.json({ ok: true });
   });

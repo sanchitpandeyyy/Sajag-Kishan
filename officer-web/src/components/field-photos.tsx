@@ -1,11 +1,12 @@
 "use client";
 
 /** Photos of one field, stored in Neon Object Storage (shown through short-lived presigned URLs). */
-import { Camera } from "lucide-react";
+import { Camera, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { apiForm } from "@/lib/api";
+import { api, apiForm } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
+
 
 interface FileRow {
   id: string;
@@ -21,6 +22,17 @@ export function FieldPhotos({ parcelId }: { parcelId: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function remove(p: FileRow) {
+    if (!window.confirm(tr(`"${p.fileName}" हटाउने?`, `Delete "${p.fileName}"?`))) return;
+    setError(null);
+    try {
+      await api(`/v1/files/${p.id}`, { method: "DELETE" });
+      await files.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr("हटाउन सकिएन", "Could not delete"));
+    }
+  }
 
   async function upload(file: File) {
     setBusy(true);
@@ -70,7 +82,15 @@ export function FieldPhotos({ parcelId }: { parcelId: string }) {
       {photos.length > 0 && (
         <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {photos.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="relative">
+              <button
+                type="button"
+                onClick={() => void remove(p)}
+                aria-label={tr("फोटो हटाउनुहोस्", "Delete photo")}
+                className="absolute top-1 right-1 z-10 grid size-8 place-items-center rounded-full bg-white/90 text-danger shadow-card hover:bg-white"
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </button>
               <a href={p.url} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-control border border-line bg-fill">
                 {/* Presigned URLs expire, so plain <img> rather than next/image caching. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}

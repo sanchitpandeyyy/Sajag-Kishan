@@ -11,6 +11,7 @@ import { useState } from "react";
 import { STATUS, type FieldStatus } from "@/components/land-charts";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
+import { storedSat } from "@/lib/stored-image";
 
 type BBox = [number, number, number, number];
 
@@ -60,7 +61,7 @@ export function AreaImage({
   const { data, loading, error } = useApi<AreaImagesResponse>(`/v1/satellite/area-images?${params}`);
   const [loaded, setLoaded] = useState<string | null>(null);
 
-  const src = data?.image ? data.image[view] : null;
+  const src = data?.image ? storedSat(data.image[view]) : null;
   const pos = (lat: number, lng: number, b: BBox) => ({ left: `${((lng - b[0]) / (b[2] - b[0])) * 100}%`, top: `${((b[3] - lat) / (b[3] - b[1])) * 100}%` });
   const date = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(lang === "ne" ? "ne-NP" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
 

@@ -12,6 +12,7 @@ import { getPrisma } from "../db";
 import { predictParcel } from "../ml/jobs";
 import { loadLanduseModel } from "../ml/landuse";
 import { seasonWindows } from "../engine/land-transparency";
+import { isAllowedImageSource, storedImageUrl } from "../satellite/image-store";
 import { boxAround, boxAroundPoints, sceneImages } from "../satellite/images";
 import { NDVI_CLASSES, ndviClass } from "../satellite/indices";
 import { radarVerdict } from "../satellite/sentinel1";
@@ -22,6 +23,12 @@ import type { AppEnv } from "../types";
 
 export const satelliteRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
+  .get("/img", requireRole(...OFFICER_ROLES), async (c) => {
+    const src = c.req.query("src") ?? "";
+    if (!isAllowedImageSource(src)) return c.json({ error: "invalid_source" }, 400);
+    c.header("Cache-Control", "private, max-age=1800");
+    return c.redirect(await storedImageUrl(src), 302);
+  })
   .post("/sync", requireRole(...OFFICER_ROLES), zValidator("json", z.object({ limit: z.number().int().min(1).max(200).default(25) })), async (c) => {
     const parcels = await getPrisma().parcel.findMany({
       where: { ward: await wardScope(c.get("user")), centroidLat: { not: null } },
