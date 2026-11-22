@@ -8,8 +8,8 @@ How the platform turns satellite data into a field-level verdict: **cultivated**
 
 | Part | Status | Where it comes from |
 |---|---|---|
-| Pilot area (Bhimdatta Municipality, Kanchanpur, 19 wards, ~28.94–29.01 N, 80.13–80.245 E) | **Real coordinates** | `backend/prisma/seed.ts` |
-| Farmers, parcels, declarations, subsidies | **Dummy** (seeded demo records placed on real coordinates) | `backend/prisma/seed.ts` |
+| Pilot area (Bhimdatta Municipality, Kanchanpur, 19 wards, ~28.94–29.01 N, 80.13–80.245 E) | **Real coordinates** | Stored in the `Ward` table |
+| Farmers, parcels, declarations, subsidies | **Demo records already in the database** (the seed script that created them has been removed) | `Farmer`, `Parcel`, `SeasonDeclaration` tables |
 | Satellite readings (NDVI, NDRE, NDWI, NDMI, EVI, SAVI, VV, VH) | **Real**: measured by Sentinel-2 / Sentinel-1 over those exact coordinates | `backend/src/satellite/sync.ts`, `history.ts` |
 | Satellite images (true colour + NDVI map) | **Real** scenes, rendered from the same satellite files | `backend/src/satellite/images.ts` |
 | Elevation, slope, aspect | **Real** (Copernicus DEM) | `backend/src/satellite/terrain.ts` |
@@ -17,7 +17,7 @@ How the platform turns satellite data into a field-level verdict: **cultivated**
 | Rainfall, temperature, soil moisture, evapotranspiration | **Real** (ERA5 reanalysis via Open-Meteo) | `backend/src/satellite/climate.ts` |
 | ML model currently deployed | **Trained on synthetic fields** (bootstrap only) | `backend/models/landuse.json` |
 
-The seed script never writes satellite readings. Every row in `SatelliteObservation` comes from a real satellite file read at the parcel's coordinates. The only dummy parts are *who owns the field* and *what the owner declared*, so the greenness and radar values you see for any mapped point are real measurements of that ground.
+Demo records never contained satellite readings. Every row in `SatelliteObservation` comes from a real satellite file read at the parcel's coordinates. The only dummy parts are *who owns the field* and *what the owner declared*, so the greenness and radar values you see for any mapped point are real measurements of that ground.
 
 ---
 
