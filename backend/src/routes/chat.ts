@@ -4,6 +4,7 @@ import { z } from "zod";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { answer, llmConfigured } from "../chat/answer";
 import { farmerContext } from "../chat/context";
+import { audioFromRequest, MAX_AUDIO_BYTES } from "../chat/audio";
 import { geminiConfigured, transcribeNepali } from "../chat/gemini";
 import { answerOfficer, officerSummary } from "../chat/officer";
 import { getPrisma } from "../db";
@@ -42,12 +43,11 @@ export const chatRoutes = new Hono<AppEnv>()
   )
   .post("/transcribe", async (c) => {
     if (!geminiConfigured()) return c.json({ error: "voice_not_configured", messageNe: "आवाज पहिचान अहिले चालू छैन।" }, 503);
-    const form = await c.req.formData().catch(() => null);
-    const file = form?.get("audio");
-    if (!(file instanceof File) || file.size === 0) return c.json({ error: "audio_required" }, 400);
-    if (file.size > 8 * 1024 * 1024) return c.json({ error: "audio_too_large" }, 413);
+    const audio = await audioFromRequest(c.req.raw);
+    if (!audio) return c.json({ error: "audio_required" }, 400);
+    if (audio.bytes.length > MAX_AUDIO_BYTES) return c.json({ error: "audio_too_large" }, 413);
     try {
-      const text = await transcribeNepali(Buffer.from(await file.arrayBuffer()), file.type || "audio/mp4");
+      const text = await transcribeNepali(audio.bytes, audio.mimeType);
       return c.json({ text });
     } catch (e) {
       console.warn("[chat] transcribe failed:", e instanceof Error ? e.message : e);
