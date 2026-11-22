@@ -11,7 +11,7 @@ export function BrandMark({ onDark = false, size = 40, subtitle }: { onDark?: bo
         <Image src="/logo.png" alt="" width={size} height={size} priority />
       </span>
       <span className="leading-tight">
-        <span className={`block font-heading text-xl font-bold ${onDark ? "text-white" : "text-brand-800"}`}>{tr("सजग किसान", "Sajag Kishan")}</span>
+        <span className={`block font-heading text-xl font-bold ${onDark ? "text-white" : "text-brand-800"}`}>{tr("कृषि दृष्टि", "Krishi Dristi")}</span>
         {subtitle && <span className={`block text-xs ${onDark ? "text-white/80" : "text-ink-muted"}`}>{subtitle}</span>}
       </span>
     </span>

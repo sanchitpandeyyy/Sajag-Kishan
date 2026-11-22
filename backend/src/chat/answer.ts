@@ -175,7 +175,7 @@ export function answerLocal(question: string, ctx: FarmerChatContext | null, hit
   }
 }
 
-const SYSTEM = `You are "Sajag Kishan Sahayak", a farming helper inside a mobile app for smallholder farmers in Nepal.
+const SYSTEM = `You are "Krishi Dristi Sahayak", a farming helper inside a mobile app for smallholder farmers in Nepal.
 The farmer writes or speaks in Nepali (sometimes romanised Nepali or English).
 
 How to answer:

@@ -42,7 +42,7 @@ export default function QuestionsPage() {
   const total = data?.byIntent.reduce((s, b) => s + b.count, 0) ?? 0;
 
   return (
-    <Shell title={tr("किसानका प्रश्न", "Farmers' questions")} subtitle={tr("सजग किसान एपमा किसानले सोधेका प्रश्न", "What farmers asked in the Sajag Kishan app")}>
+    <Shell title={tr("किसानका प्रश्न", "Farmers' questions")} subtitle={tr("कृषि दृष्टि एपमा किसानले सोधेका प्रश्न", "What farmers asked in the Krishi Dristi app")}>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={MessageCircleQuestion} tone="blue" label={tr("जम्मा प्रश्न", "Total questions")} value={num(total)} />
         {data?.byIntent.slice(0, 3).map((b) => {

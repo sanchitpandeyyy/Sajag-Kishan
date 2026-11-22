@@ -102,7 +102,7 @@ export default function ReportsPage() {
         <Card>
           <article className="space-y-6">
             <header className="border-b border-line pb-4">
-              <p className="text-sm text-ink-muted">{tr("सजग किसान, कृषि शाखा", "Sajag Kishan, agriculture office")}</p>
+              <p className="text-sm text-ink-muted">{tr("कृषि दृष्टि, कृषि शाखा", "Krishi Dristi, agriculture office")}</p>
               <h2 className="text-2xl font-bold text-brand-800">{tr(`कृषि भूमि तथा बाली प्रतिवेदन, ${place}`, `Agricultural land and crop report, ${place}`)}</h2>
               <p className="text-sm text-ink-muted">
                 {tr(`आ.व. ${s.fiscalYearBs}, ${season[0]} मौसम. मिति: ${today}`, `FY ${s.fiscalYearBs}, ${season[1]} season. Date: ${today}`)}

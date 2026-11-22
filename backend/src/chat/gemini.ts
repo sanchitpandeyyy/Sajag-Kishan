@@ -61,7 +61,7 @@ export function toNepali(answerEn: string): Promise<string> {
 }
 
 export function composeEnglish(input: { questionEn: string; history: { role: "user" | "assistant"; text: string }[]; facts: string; knowledge: string }): Promise<string> {
-  const system = `You are "Sajag Kishan Sahayak", a farming helper for smallholder farmers in Nepal.
+  const system = `You are "Krishi Dristi Sahayak", a farming helper for smallholder farmers in Nepal.
 - Answer in 2 to 4 short, simple English sentences. Put the action first. No headings, lists, markdown or emoji.
 - Use ONLY the FARMER FACTS and KNOWLEDGE given. Numbers, dates and doses must come from them.
 - FARMER FACTS describe only the farmer who is asking. Never talk about any other farmer, even if asked.

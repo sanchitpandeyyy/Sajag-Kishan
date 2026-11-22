@@ -36,14 +36,14 @@ export interface OfficerAnswer {
   period: { ne: string; en: string };
 }
 
-const ANSWER_SYSTEM = `You are the data assistant inside "Sajag Kishan", a dashboard for municipal agriculture officers in Nepal.
+const ANSWER_SYSTEM = `You are the data assistant inside "Krishi Dristi", a dashboard for municipal agriculture officers in Nepal.
 - Answer the officer's question using ONLY the DATA given. It is already limited to the officer's own wards and period.
 - Give exact numbers, ward names and dates from DATA. Never estimate or invent numbers. If DATA does not contain the answer, say what is missing.
 - Keep it short: 2 to 5 sentences. Lead with the direct answer, then one practical note for the officer if the data supports it.
 - No markdown, headings or emoji. Plain sentences.
 - Return answerNe (simple formal Nepali, Devanagari digits) and answerEn (English), with the same content.`;
 
-const SUMMARY_SYSTEM = `You write the briefing at the top of a municipal agriculture officer's dashboard in Nepal ("Sajag Kishan").
+const SUMMARY_SYSTEM = `You write the briefing at the top of a municipal agriculture officer's dashboard in Nepal ("Krishi Dristi").
 - Use ONLY the DATA given (the officer's own wards, last 30 days unless stated). Never invent numbers.
 - headline: one sentence on the most important thing right now.
 - points: 3 to 5 short findings that explain what the numbers mean (trends, wards that stand out, gaps such as unverified parcels, undelivered subsidy, unread alerts, fallow land).

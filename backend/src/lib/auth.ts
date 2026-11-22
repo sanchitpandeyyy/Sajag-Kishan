@@ -25,7 +25,7 @@ const DISABLED_PATHS = [
 ];
 
 export const auth = betterAuth({
-  appName: "KrishiDristi",
+  appName: "Krishi Dristi",
   baseURL: env.authUrl,
   basePath: AUTH_BASE_PATH,
   secret: env.authSecret,
@@ -82,7 +82,7 @@ export const auth = betterAuth({
       requireVerification: false,
       phoneNumberValidator: (value) => mobileSchema.safeParse(value).success,
       sendOTP: () => {
-        throw new Error("OTP is disabled in KrishiDristi");
+        throw new Error("OTP is disabled in Krishi Dristi");
       },
     }),
     admin({

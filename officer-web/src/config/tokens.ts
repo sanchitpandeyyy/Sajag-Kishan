@@ -59,6 +59,6 @@ export const type = {
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 } as const;
 
 export const brand = {
-  nameNe: "सजग किसान",
-  nameEn: "Sajag Kishan",
+  nameNe: "कृषि दृष्टि",
+  nameEn: "Krishi Dristi",
 } as const;

@@ -101,7 +101,7 @@ export default function Landing() {
     <div ref={root} className="flex min-h-dvh flex-col bg-white">
       <header className="sticky top-0 z-40 border-b border-line bg-white px-4 md:px-8">
         <div className="mx-auto flex min-h-[72px] max-w-[1200px] items-center gap-2">
-          <Link href="/" aria-label={tr("सजग किसान गृहपृष्ठ", "Sajag Kishan home")} className="mr-2 lg:mr-6">
+          <Link href="/" aria-label={tr("कृषि दृष्टि गृहपृष्ठ", "Krishi Dristi home")} className="mr-2 lg:mr-6">
             <BrandMark size={36} />
           </Link>
           <nav aria-label={tr("साइट", "Site")} className="hidden items-center gap-1 lg:flex">
@@ -144,8 +144,8 @@ export default function Landing() {
             </motion.h1>
             <motion.p {...enter(2)} className="max-w-[640px] text-lead text-body">
               {tr(
-                "सजग किसानले पालिकाको कृषि शाखालाई जग्गा, बाली र अनुदानको स्पष्ट जानकारी दिन्छ, र किसानलाई कहिले के गर्ने भन्ने पात्रो।",
-                "Sajag Kishan gives municipal agriculture offices a clear view of land, crops and subsidy, and gives farmers a calendar of what to do and when.",
+                "कृषि दृष्टिले पालिकाको कृषि शाखालाई जग्गा, बाली र अनुदानको स्पष्ट जानकारी दिन्छ, र किसानलाई कहिले के गर्ने भन्ने पात्रो।",
+                "Krishi Dristi gives municipal agriculture offices a clear view of land, crops and subsidy, and gives farmers a calendar of what to do and when.",
               )}
             </motion.p>
             <motion.div {...enter(3)} className="mt-2 flex w-full flex-wrap items-center justify-center gap-3">
@@ -322,7 +322,7 @@ export default function Landing() {
               <Image src="/logo.png" alt="" width={72} height={72} className="size-14 md:size-[72px]" />
             </span>
             <div className="flex flex-col gap-1">
-              <h2 className="font-heading text-h2 text-ink md:text-h1">{tr("किसानका लागि सजग किसान एप", "The Sajag Kishan app for farmers")}</h2>
+              <h2 className="font-heading text-h2 text-ink md:text-h1">{tr("किसानका लागि कृषि दृष्टि एप", "The Krishi Dristi app for farmers")}</h2>
               <p className="text-lead text-ink/80">{tr("पात्रो, मौसम सूचना र अलार्म, आफ्नै भाषामा, एन्ड्रोइड फोनमा।", "Calendar, weather alerts and reminders, in Nepali, on Android phones.")}</p>
             </div>
           </div>
@@ -378,7 +378,7 @@ export default function Landing() {
         </div>
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 border-t border-line py-6">
           <p className="text-small text-muted">
-            © {new Date().getFullYear()} {tr("सजग किसान", "Sajag Kishan")}. {tr("नेपालका किसानका लागि बनाइएको।", "Made for Nepal's farmers.")}
+            © {new Date().getFullYear()} {tr("कृषि दृष्टि", "Krishi Dristi")}. {tr("नेपालका किसानका लागि बनाइएको।", "Made for Nepal's farmers.")}
           </p>
           <LangToggle />
         </div>
