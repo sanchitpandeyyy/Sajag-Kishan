@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireAuth } from "../auth";
+import { refreshFarmerContext } from "../chat/context";
 import { currentFiscalYearBs, currentSeason, farmerIdFor, wardScope } from "../scope";
 import type { AppEnv } from "../types";
 
@@ -21,6 +22,7 @@ const declarationSchema = z.object({
 
 export const declarationRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
+  .use("*", refreshFarmerContext)
   .get("/", async (c) => {
     const user = c.get("user");
     const where = user.role === "FARMER" ? { farmerId: await farmerIdFor(user) } : { parcel: { ward: await wardScope(user) } };

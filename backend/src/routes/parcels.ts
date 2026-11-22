@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { audit } from "../audit";
+import { refreshFarmerContext } from "../chat/context";
 import { farmerIdFor, wardScope } from "../scope";
 import type { AppEnv } from "../types";
 
@@ -37,6 +38,7 @@ function centroidOf(polygon: z.infer<typeof polygonSchema>) {
 
 export const parcelRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
+  .use("*", refreshFarmerContext)
   .get("/", async (c) => {
     const user = c.get("user");
     const prisma = getPrisma();
