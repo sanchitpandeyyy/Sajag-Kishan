@@ -7,7 +7,6 @@ const d = (i: number) => `2026-07-${String(i + 1).padStart(2, "0")}`;
 
 describe("radar verdict", () => {
   it("sees the flooded-then-growing paddy signature", () => {
-    // VH: -23 dB at transplanting (water), then the crop grows to -14 dB.
     const vh = [-23, -21, -18, -16, -14];
     const v = radarVerdict(vh.map((x, i) => ({ date: d(i), vvDb: -10 + i * 0.5, vhDb: x })));
     expect(v.vhRangeDb).toBe(9);
@@ -20,7 +19,7 @@ describe("radar verdict", () => {
     const v = radarVerdict([-17, -17.5, -16.8, -17.2].map((x, i) => ({ date: d(i), vvDb: -11, vhDb: x })));
     expect(v.cropCycleSeen).toBe(false);
     expect(v.paddySignature).toBe(false);
-    expect(v.moistureIndex).toBeNull(); // VV never moved, so no wetness scale
+    expect(v.moistureIndex).toBeNull();
   });
 
   it("refuses to judge with too few readings", () => {
@@ -32,7 +31,7 @@ describe("greenness verdict", () => {
   it("reports dNDVI and the season amplitude", () => {
     const v = greennessVerdict([0.2, 0.45, 0.8, 0.6].map((ndvi, i) => ({ date: d(i), ndvi })));
     expect(v.peakNdvi).toBe(0.8);
-    expect(v.dNdvi).toBe(-0.2); // harvest started
+    expect(v.dNdvi).toBe(-0.2);
     expect(v.seasonAmplitude).toBe(0.6);
     expect(v.likelyFallow).toBe(false);
     expect(v.latestClass?.key).toBe("dense");

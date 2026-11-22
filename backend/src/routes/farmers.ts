@@ -10,7 +10,6 @@ import type { AppEnv } from "../types";
 
 const accessSchema = z.object({ disabled: z.boolean(), reason: z.string().trim().max(200).optional() });
 
-/** Officer: farmers in their local level (super admin: all). Citizenship is masked. */
 export const farmerRoutes = new Hono<AppEnv>()
   .use("*", requireAuth, requireRole(...OFFICER_ROLES))
   .get("/", async (c) => {
@@ -48,7 +47,6 @@ export const farmerRoutes = new Hono<AppEnv>()
       })),
     );
   })
-  /** One farmer: profile (citizenship masked), fields with crops by season, subsidy. */
   .get("/:id", async (c) => {
     const f = await getPrisma().farmer.findFirst({
       where: { id: c.req.param("id"), farmingWard: await wardScope(c.get("user")) },
@@ -124,12 +122,6 @@ export const farmerRoutes = new Hono<AppEnv>()
       })),
     });
   })
-  /**
-   * Issue a one-time temporary password (no OTP/SMS in KrishiDristi).
-   * The officer hands it to the farmer in person; the farmer changes it after logging in.
-   * Returned once, never stored in plain text, and all the farmer's sessions are ended.
-   */
-  /** Turn a farmer's app account off (lost phone, misuse, death) or back on. Data is kept. */
   .post("/:id/access", zValidator("json", accessSchema), async (c) => {
     const user = c.get("user");
     const prisma = getPrisma();

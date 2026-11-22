@@ -6,11 +6,6 @@ import { ButtonLink } from "@/components/ui";
 import { isOfficerRole, useSession } from "@/lib/auth-client";
 import { LangToggle, useLang } from "@/lib/i18n";
 
-/**
- * Frame for the public national data pages. They are public research pages, not part of the
- * officer dashboard, so everyone gets the same plain header; signed-in officers see a
- * "Dashboard" button instead of "Sign in".
- */
 export function PublicFrame({ title, subtitle, action, crumbs, children }: { title: string; subtitle?: string; action?: React.ReactNode; crumbs?: React.ReactNode; children: React.ReactNode }) {
   const { tr } = useLang();
   const { data: session } = useSession();

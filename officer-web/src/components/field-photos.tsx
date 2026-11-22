@@ -1,12 +1,10 @@
 "use client";
 
-/** Photos of one field, stored in Neon Object Storage (shown through short-lived presigned URLs). */
 import { Camera, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { api, apiForm } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
-
 
 interface FileRow {
   id: string;
@@ -92,7 +90,6 @@ export function FieldPhotos({ parcelId }: { parcelId: string }) {
                 <Trash2 className="size-4" aria-hidden />
               </button>
               <a href={p.url} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-control border border-line bg-fill">
-                {/* Presigned URLs expire, so plain <img> rather than next/image caching. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={p.fileName} className="size-full object-cover" loading="lazy" />
               </a>

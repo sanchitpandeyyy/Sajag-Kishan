@@ -1,11 +1,3 @@
-/**
- * ERA5 reanalysis climate per ward: daily rainfall, temperature, topsoil moisture and reference
- * evapotranspiration from the Open-Meteo historical archive (free, no API key; ERA5-Land where it
- * exists, ERA5 elsewhere). ERA5-Land cells are about 9 km, so one series per ward is enough: every
- * field in the ward would read the same cell anyway.
- *
- * The archive runs about 5 days behind today. Days already stored are not fetched again.
- */
 import { getPrisma } from "../db";
 
 const ARCHIVE = "https://archive-api.open-meteo.com/v1/archive";
@@ -23,7 +15,6 @@ export interface ClimateDayRow {
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-/** Daily ERA5 values for a point between two dates (inclusive). */
 export async function fetchClimate(lat: number, lng: number, from: Date, to: Date, fetchImpl: typeof fetch = fetch): Promise<ClimateDayRow[]> {
   const params = new URLSearchParams({
     latitude: lat.toFixed(3),
@@ -51,7 +42,6 @@ export async function fetchClimate(lat: number, lng: number, from: Date, to: Dat
     .filter((r) => r.precipMm != null || r.tempMeanC != null || r.soilMoisture != null);
 }
 
-/** Ward centre: the stored centroid, else the mean of its mapped fields. */
 async function wardPoint(wardId: number): Promise<[number, number] | null> {
   const prisma = getPrisma();
   const w = await prisma.ward.findUnique({ where: { id: wardId }, select: { centroidLat: true, centroidLng: true } });
@@ -60,14 +50,10 @@ async function wardPoint(wardId: number): Promise<[number, number] | null> {
   return a._avg.centroidLat != null && a._avg.centroidLng != null ? [a._avg.centroidLat, a._avg.centroidLng] : null;
 }
 
-/**
- * Make sure the ward has daily climate for the last `days` days (default 400, a little more than the
- * 365-day feature window). Fetches only the missing tail. Returns the number of new days stored.
- */
 export async function syncWardClimate(wardId: number, opts: { days?: number; now?: Date; fetchImpl?: typeof fetch } = {}): Promise<number> {
   const prisma = getPrisma();
   const now = opts.now ?? new Date();
-  const to = new Date(now.getTime() - 5 * DAY); // archive delay
+  const to = new Date(now.getTime() - 5 * DAY);
   let from = new Date(now.getTime() - (opts.days ?? 400) * DAY);
   const last = await prisma.climateDay.findFirst({ where: { wardId }, orderBy: { date: "desc" }, select: { date: true } });
   if (last && last.date >= from) from = new Date(last.date.getTime() + DAY);
@@ -80,7 +66,6 @@ export async function syncWardClimate(wardId: number, opts: { days?: number; now
   return r.count;
 }
 
-/** Stored climate for a ward within a window. */
 export async function wardClimate(wardId: number, since: Date): Promise<ClimateDayRow[]> {
   return getPrisma().climateDay.findMany({
     where: { wardId, date: { gte: since } },

@@ -41,7 +41,6 @@ export function Shell({ title, subtitle, action, children }: { title: string; su
   const { data: me } = useMe();
   const nav = NAV.filter((n) => !("adminOnly" in n) || me?.role === "SUPER_ADMIN");
 
-  // A temporary password must be replaced before using the admin side.
   if (me?.mustChangePassword && typeof window !== "undefined") window.location.href = "/login?change=1";
 
   async function logout() {
@@ -118,7 +117,6 @@ export function Shell({ title, subtitle, action, children }: { title: string; su
   );
 }
 
-/** Plain icon for headings and figures. Farmers and officers scan icons before words, so use one beside every title. No tinted tile behind it. */
 export function Glyph({ icon: Icon, className = "size-6" }: { icon: LucideIcon; className?: string }) {
   return <Icon className={`${className} shrink-0 text-brand-700`} strokeWidth={1.75} aria-hidden />;
 }

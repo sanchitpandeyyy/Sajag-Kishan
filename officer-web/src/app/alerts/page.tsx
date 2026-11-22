@@ -38,7 +38,6 @@ interface Ward {
   number: number;
 }
 
-/** English text for engine alert types (Nepali comes from the engine). */
 const TYPE_EN: Record<string, readonly [string, string]> = {
   HEAVY_RAIN: ["Heavy rain likely", "Drain fields and postpone fertilizer or pesticide application."],
   FLOOD_RISK: ["Flood / landslide risk", "A lot of rain over three days. Move livestock and stored grain to safety."],
@@ -71,10 +70,6 @@ const ICON: Record<string, typeof CloudRain> = {
 
 const LEVEL: Record<string, readonly [string, string]> = { HIGH: ["उच्च", "high"], MEDIUM: ["मध्यम", "medium"], LOW: ["कम", "low"] };
 
-/**
- * Plain-language reason for an alert, built from the engine's evidence fields.
- * Unknown fields are skipped, so a new rule never shows raw data.
- */
 function evidenceText(ev: Record<string, unknown>, tr: (ne: string, en: string) => string, num: (n: number, d?: number) => string, day: (iso: string) => string): string {
   const n = (k: string) => (typeof ev[k] === "number" ? (ev[k] as number) : null);
   const parts: string[] = [];
@@ -112,7 +107,6 @@ export default function AlertsPage() {
   const { data: me } = useMe();
   const feed = useApi<{ alerts: Alert[]; advisories: Advisory[] }>("/v1/alerts");
   const wards = useApi<Ward[]>(me?.officer ? `/v1/geo/wards?localLevelId=${me.officer.localLevelId}` : null);
-  // "Ward 4", plus the municipality when it is not the officer's own (super admin sees all of them).
   const wardLabel = (w: WardLabel | null) => {
     if (!w) return tr("वडा थाहा छैन", "Ward unknown");
     const ward = tr(`वडा ${num(w.number)}`, `Ward ${w.number}`);
@@ -163,7 +157,6 @@ export default function AlertsPage() {
   }
 
   const date = (iso: string) => new Date(iso).toLocaleDateString(lang === "ne" ? "ne-NP" : "en-GB", { day: "numeric", month: "short" });
-  // Severity shows in the icon and label colour only: plain white cards, no coloured border or tint.
   const severityClass = { SEVERE: "text-danger", WARNING: "text-warning", INFO: "text-info" } as const;
   const severityLabel = { SEVERE: tr("खतरा", "Danger"), WARNING: tr("सचेत", "Warning"), INFO: tr("जानकारी", "Info") } as const;
 

@@ -1,4 +1,3 @@
-/** The officer app's single API client. Calls go through the /api rewrite (same origin). */
 import { markApiCacheStale } from "./api-cache";
 
 export class ApiError extends Error {
@@ -21,7 +20,6 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** JSON request. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -33,7 +31,6 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return out;
 }
 
-/** Multipart upload (the browser sets the multipart boundary header). */
 export async function apiForm<T>(path: string, form: FormData): Promise<T> {
   const res = await fetch(`/api${path}`, { method: "POST", body: form, credentials: "include" });
   const out = await handle<T>(res);

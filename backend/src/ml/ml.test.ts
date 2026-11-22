@@ -32,11 +32,10 @@ describe("land-use features", () => {
   });
 
   it("measures radar spread as a standard deviation", () => {
-    // VH -22, -18, -15, -14: mean -17.25, population SD = sqrt(9.6875) = 3.112
     expect(f.vh_std).toBe(3.112);
-    expect(f.vv_std).toBe(0); // VV constant at -9
+    expect(f.vv_std).toBe(0);
     const one = landuseFeatures([s1("2026-08-05", -18)], { elevationM: 0, slopeDeg: 0, irrigation: "RAINFED" }, { now: day("2026-11-01") });
-    expect(Number.isNaN(one.vh_std)).toBe(true); // a single reading has no spread
+    expect(Number.isNaN(one.vh_std)).toBe(true);
   });
 
   it("marks missing sensors as NaN and the rules call it cultivated", () => {
@@ -54,7 +53,6 @@ describe("land-use features", () => {
 
 describe("climate features", () => {
   const now = day("2026-11-01");
-  /** A full year of daily ERA5 rows ending 5 days before `now` (the archive delay). */
   const year = (rain: (i: number) => number, tmax = 30): ClimateRow[] =>
     Array.from({ length: 360 }, (_, i) => ({
       date: new Date(now.getTime() - (5 + i) * 86_400_000),
@@ -68,8 +66,8 @@ describe("climate features", () => {
 
   it("sums rainfall over the year and the last 90 days", () => {
     const f = landuseFeatures([], field, { now, climate: year(() => 4) });
-    expect(f.rain_365_mm).toBe(1440); // 360 days x 4 mm
-    expect(f.rain_90_mm).toBe(4 * 85); // days 5..89 before now fall inside the last 90 days
+    expect(f.rain_365_mm).toBe(1440);
+    expect(f.rain_90_mm).toBe(4 * 85);
     expect(f.temp_mean_c).toBe(24);
     expect(f.soil_moisture_mean).toBe(0.3);
     expect(f.hot_days).toBe(40);
@@ -81,7 +79,7 @@ describe("climate features", () => {
     const f = landuseFeatures([], field, { now, climate: half });
     expect(Number.isNaN(f.rain_365_mm)).toBe(true);
     expect(Number.isNaN(f.hot_days)).toBe(true);
-    expect(f.rain_90_mm).toBe(340); // the recent 90 days are still complete
+    expect(f.rain_90_mm).toBe(340);
   });
 
   it("is NaN without any climate", () => {
@@ -103,12 +101,11 @@ describe("model evaluators", () => {
     const rf: LightGbmDump = { ...gbdt, average_output: true };
     expect(predictProba(gbdt, [1])).toBeCloseTo(1 / (1 + Math.exp(-4)), 12);
     expect(predictProba(rf, [1])).toBeCloseTo(1 / (1 + Math.exp(-2)), 12);
-    expect(predictProba(rf, [Number.NaN])).toBeCloseTo(1 / (1 + Math.exp(2)), 12); // NaN goes left
+    expect(predictProba(rf, [Number.NaN])).toBeCloseTo(1 / (1 + Math.exp(2)), 12);
   });
 
   it("imputes, scales and applies the logistic weights", () => {
     const m = { impute: [2, 0], mean: [1, 0], scale: [2, 1], coef: [1.5, -1], intercept: 0.25 };
-    // x0 missing -> median 2 -> (2-1)/2 = 0.5; z = 0.25 + 1.5*0.5 - 1*1 = 0
     expect(logisticProba(m, [Number.NaN, 1])).toBeCloseTo(0.5, 12);
   });
 });

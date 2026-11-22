@@ -18,11 +18,6 @@ function fetchShared<T>(path: string): Promise<T> {
   return p;
 }
 
-/**
- * Data hook with pull-to-refresh: { data, error, loading, refresh }.
- * Screens share one cache, and the last answer is saved on the phone, so a screen opens
- * instantly (even offline) and refreshes in the background.
- */
 export function useData<T>(path: string | null) {
   const cached = path ? memoryGet(path) : undefined;
   const [data, setData] = useState<T | null>((cached?.data as T) ?? null);
@@ -60,7 +55,6 @@ export function useData<T>(path: string | null) {
   return { data, error, loading, refresh };
 }
 
-/** API shapes used by the farmer screens. */
 export interface Me {
   name: string;
   phoneNumber: string | null;

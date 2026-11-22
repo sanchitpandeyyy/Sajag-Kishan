@@ -1,10 +1,3 @@
-/**
- * POST /v1/chat   { message, history? } -> { answerNe, answerEn, understoodEn, intent, sources, mode }
- * GET  /v1/chat/suggestions                 -> starter questions for the app
- *
- * Farmers get answers grounded in their own farm data; officers get knowledge-base answers.
- * Works with no API key ("local" mode). With ANTHROPIC_API_KEY set, Claude writes the reply ("llm" mode).
- */
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -47,7 +40,6 @@ export const chatRoutes = new Hono<AppEnv>()
       ],
     }),
   )
-  /** Voice input: multipart field "audio" (m4a/aac/wav/...) -> { text } in Nepali, via Gemini. */
   .post("/transcribe", async (c) => {
     if (!geminiConfigured()) return c.json({ error: "voice_not_configured", messageNe: "आवाज पहिचान अहिले चालू छैन।" }, 503);
     const form = await c.req.formData().catch(() => null);
@@ -72,7 +64,6 @@ export const chatRoutes = new Hono<AppEnv>()
     return c.json(result);
   })
   .get("/officer-summary", requireRole(...OFFICER_ROLES), async (c) => c.json(await officerSummary(c.get("user"), { fresh: c.req.query("fresh") === "1" })))
-  /** Officer: what farmers in their area asked, newest first, with a count per topic. */
   .get("/questions", requireRole(...OFFICER_ROLES), zValidator("query", z.object({ intent: z.string().max(30).optional(), q: z.string().max(100).optional() })), async (c) => {
     const { intent, q } = c.req.valid("query");
     const prisma = getPrisma();
@@ -93,7 +84,6 @@ export const chatRoutes = new Hono<AppEnv>()
     });
   });
 
-/** Best effort: a failed log must never break the farmer's answer. No phone number or name is stored. */
 async function logQuestion(userId: string, question: string, result: Awaited<ReturnType<typeof answer>>) {
   try {
     const prisma = getPrisma();
@@ -102,6 +92,5 @@ async function logQuestion(userId: string, question: string, result: Awaited<Ret
       data: { userId, wardId: farmer?.farmingWardId ?? null, question, understoodEn: result.understoodEn ?? null, intent: result.intent, answerNe: result.answerNe, mode: result.mode },
     });
   } catch {
-    // ignore
   }
 }

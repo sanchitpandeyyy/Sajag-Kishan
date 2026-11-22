@@ -31,7 +31,6 @@ import type { AppEnv } from "./types";
 export const app = new Hono<AppEnv>();
 
 app.use("*", logger());
-// CORS must be registered before the Better Auth handler. Explicit origins only (credentials: true).
 app.use(
   "*",
   cors({
@@ -48,7 +47,6 @@ app.use("*", compress());
 
 app.get("/health", (c) => c.json({ ok: true, service: "krishidristi-api", time: new Date().toISOString() }));
 
-/** Readiness: proves Postgres and Object Storage are reachable (no secrets returned). */
 app.get("/health/ready", async (c) => {
   const checks: Record<string, { ok: boolean; detail?: string }> = {};
   try {
@@ -71,7 +69,6 @@ app.get("/health/ready", async (c) => {
   return c.json({ ok, checks }, ok ? 200 : 503);
 });
 
-// Better Auth: phone+password sign-in, change-password, sessions, admin, reference docs (/v1/auth/reference). No OTP.
 app.on(["GET", "POST"], `${AUTH_BASE_PATH}/*`, (c) => auth.handler(c.req.raw));
 
 const v1 = new Hono<AppEnv>()

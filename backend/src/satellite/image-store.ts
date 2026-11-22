@@ -30,11 +30,6 @@ async function storeOnce(key: string, src: string): Promise<boolean> {
   return true;
 }
 
-/**
- * Satellite pictures are rendered by Planetary Computer on request (slow, and gone if the service changes).
- * Store each picture in the Neon "assets" bucket the first time it is seen, then serve it from there.
- * Returns a URL to redirect to: the stored copy, or the original when storage is unavailable.
- */
 export async function storedImageUrl(src: string): Promise<string> {
   if (!storageConfigured()) return src;
   const key = imageKey(src);

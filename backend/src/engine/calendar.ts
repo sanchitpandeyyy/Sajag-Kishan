@@ -1,10 +1,3 @@
-/**
- * KrishiCalendar generator (docs/05-engine-algorithms.md §2).
- *
- * v0: zone templates (expert-reviewed later) + altitude shift + weather gating.
- * Templates use a sowing anchor; each stage is an offset in days from sowing.
- * Altitude shift: cooler sites grow slower, so later stages stretch by the GDD ratio.
- */
 import { getCrop } from "./crops";
 import type { DailyForecast } from "./weather-alerts";
 import type { AgroZone } from "./zoning";
@@ -23,7 +16,6 @@ export type CalendarTask =
 
 export interface StageTemplate {
   task: CalendarTask;
-  /** Offset from sowing, in days (negative = before sowing). */
   offsetDays: number;
   durationDays: number;
   titleNe: string;
@@ -34,9 +26,7 @@ export interface CropZoneTemplate {
   crop: string;
   zone: AgroZone;
   season: "BARSHE" | "HIUDE" | "CHAITE";
-  /** Typical sowing window start, as AD month (1–12) and day. */
   sowingStart: { month: number; day: number };
-  /** Width of the sowing window in days. */
   sowingWindowDays: number;
   stages: StageTemplate[];
   version: string;
@@ -83,7 +73,6 @@ const potatoStages: StageTemplate[] = [
   { task: "HARVEST", offsetDays: 100, durationDays: 10, titleNe: "आलु खन्ने" },
 ];
 
-/** Initial templates for the pilot (Terai). Must be reviewed by agronomists. */
 export const CALENDAR_TEMPLATES: CropZoneTemplate[] = [
   { crop: "paddy", zone: "TERAI", season: "BARSHE", sowingStart: { month: 6, day: 25 }, sowingWindowDays: 30, stages: paddyStages, version: "terai-v0" },
   { crop: "paddy", zone: "MID_HILL", season: "BARSHE", sowingStart: { month: 6, day: 15 }, sowingWindowDays: 25, stages: paddyStages, version: "midhill-v0" },
@@ -97,7 +86,6 @@ export const CALENDAR_TEMPLATES: CropZoneTemplate[] = [
 
 export function findTemplate(crop: string, zone: AgroZone, season?: string): CropZoneTemplate | undefined {
   const forCrop = CALENDAR_TEMPLATES.filter((t) => t.crop === crop && (!season || t.season === season));
-  // Exact zone first, then the nearest available template for that crop.
   const order: AgroZone[] = ["TERAI", "LOWER_HILL", "MID_HILL", "UPPER_HILL", "MOUNTAIN"];
   const target = order.indexOf(zone);
   return forCrop.sort((a, b) => Math.abs(order.indexOf(a.zone) - target) - Math.abs(order.indexOf(b.zone) - target))[0];
@@ -106,7 +94,7 @@ export function findTemplate(crop: string, zone: AgroZone, season?: string): Cro
 export interface GeneratedEvent {
   crop: string;
   task: CalendarTask;
-  startsOn: string; // ISO date
+  startsOn: string;
   endsOn: string;
   titleNe: string;
   noteNe?: string;
@@ -117,10 +105,8 @@ export interface GenerateOptions {
   crop: string;
   zone: AgroZone;
   season?: string;
-  /** Declared sowing date. Defaults to the template's window start in `year`. */
   sowingDate?: string;
   year?: number;
-  /** Mean temperature at the template's reference elevation vs the parcel, °C. Used to stretch stages. */
   referenceMeanTempC?: number;
   parcelMeanTempC?: number;
   forecast?: DailyForecast[];
@@ -129,7 +115,6 @@ export interface GenerateOptions {
 const DAY = 86_400_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Generate dated calendar events for one crop on one parcel. */
 export function generateCalendar(opts: GenerateOptions): GeneratedEvent[] {
   const tpl = findTemplate(opts.crop, opts.zone, opts.season);
   if (!tpl) return [];
@@ -140,7 +125,6 @@ export function generateCalendar(opts: GenerateOptions): GeneratedEvent[] {
     ? new Date(`${opts.sowingDate}T00:00:00Z`)
     : new Date(Date.UTC(year, tpl.sowingStart.month - 1, tpl.sowingStart.day));
 
-  // Thermal stretch: GDD/day falls at cooler sites, so stages after sowing take longer.
   let stretch = 1;
   if (crop && opts.referenceMeanTempC != null && opts.parcelMeanTempC != null) {
     const refGdd = Math.max(1, opts.referenceMeanTempC - crop.gddBase);
@@ -156,7 +140,6 @@ export function generateCalendar(opts: GenerateOptions): GeneratedEvent[] {
     const reason: Record<string, string | number> = { template: tpl.version, zone: tpl.zone };
     if (stretch !== 1) reason.thermalStretch = Math.round(stretch * 100) / 100;
 
-    // Weather gating: postpone fertilizing/sowing by a day per forecast heavy-rain day.
     if (["FERTILIZING", "SOWING", "TRANSPLANTING"].includes(s.task)) {
       let shifted = 0;
       while (heavyRainDays.has(iso(start)) && shifted < 5) {

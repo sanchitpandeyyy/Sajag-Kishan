@@ -1,7 +1,3 @@
-/**
- * Fill past seasons (and land cover) for mapped fields from the command line:
- *   npx tsx src/satellite/sync-history.ts [seasons=6] [localLevelId]
- */
 import { getPrisma } from "../db";
 import { syncParcelHistory } from "./history";
 

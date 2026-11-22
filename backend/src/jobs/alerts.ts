@@ -1,9 +1,3 @@
-/**
- * weather:refresh + alerts:evaluate (docs/03-technical-implementation.md §6, docs/10 §3-4).
- * Per ward: fetch the forecast, run weather rules, then run disease/pest risk for the crops
- * actually declared in that ward this season (with the ward's alert history). New alerts are
- * stored and pushed to the farmers they concern.
- */
 import { getPrisma, type Prisma } from "../db";
 import { assessDiseaseRisk, evaluateWeatherAlerts, fetchForecast } from "../engine";
 import { notifyWard } from "../notify";

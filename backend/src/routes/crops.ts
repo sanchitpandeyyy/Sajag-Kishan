@@ -1,4 +1,3 @@
-/** GET /v1/crops: the crop catalogue (for crop pickers in both apps). */
 import { Hono } from "hono";
 import { requireAuth } from "../auth";
 import { getPrisma } from "../db";

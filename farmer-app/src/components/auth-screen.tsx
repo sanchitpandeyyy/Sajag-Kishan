@@ -5,7 +5,6 @@ import { LangSwitch } from "@/components/ui";
 import { useLang } from "@/lib/i18n";
 import { theme } from "@/theme";
 
-/** Shared frame for sign-in screens: logo, title, one white card. Plain and readable. */
 export function AuthScreen({ title, subtitle, icon, children }: { title: string; subtitle: string; icon?: keyof typeof Ionicons.glyphMap; children: React.ReactNode }) {
   const { tr } = useLang();
   return (

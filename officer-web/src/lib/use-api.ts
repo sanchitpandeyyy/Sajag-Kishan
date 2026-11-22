@@ -27,7 +27,6 @@ export function clearApiCache(prefix?: string) {
   for (const k of [...cache.keys()]) if (!prefix || k.startsWith(prefix)) cache.delete(k);
 }
 
-/** Data hook with a shared cache: cached data shows at once, then refreshes in the background when older than 30 s. */
 export function useApi<T>(path: string | null) {
   const cached = path ? (cache.get(path) as Entry | undefined) : undefined;
   const [data, setData] = useState<T | null>((cached?.data as T) ?? null);

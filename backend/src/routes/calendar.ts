@@ -5,10 +5,6 @@ import { requireAuth } from "../auth";
 import { farmerIdFor, wardScope } from "../scope";
 import type { AppEnv } from "../types";
 
-/**
- * GET /v1/calendar?parcelId=ID returns a 12-month calendar for one parcel, built from
- * its latest declarations (or suggested crops if none), altitude and forecast.
- */
 export const calendarRoutes = new Hono<AppEnv>().use("*", requireAuth).get("/", async (c) => {
   const user = c.get("user");
   const parcelId = c.req.query("parcelId");
@@ -28,7 +24,6 @@ export const calendarRoutes = new Hono<AppEnv>().use("*", requireAuth).get("/", 
   const forecast = lat != null && lng != null ? await fetchForecast(lat, lng, { days: 16 }).catch(() => null) : null;
 
   const declared = parcel.declarations.filter((d) => !d.isFallow);
-  // No declaration yet → show a typical rotation for the zone so the farmer still gets value on day one.
   const plan = declared.length
     ? declared.map((d) => ({ crop: d.crop.code, season: d.season, sowingDate: d.sowingDate?.toISOString().slice(0, 10) }))
     : [

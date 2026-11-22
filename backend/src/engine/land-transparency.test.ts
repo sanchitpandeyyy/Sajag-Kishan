@@ -26,8 +26,8 @@ describe("judgeable season", () => {
   it("waits 75 days before judging a season", () => {
     const now = new Date("2026-11-22T00:00:00Z");
     const w = seasonWindows(now, 3);
-    expect(seasonJudgeable(w[2]!, now)).toBe(false); // winter started 1 Nov
-    expect(latestJudgeableIndex(w, now)).toBe(1); // monsoon 2083/84
+    expect(seasonJudgeable(w[2]!, now)).toBe(false);
+    expect(latestJudgeableIndex(w, now)).toBe(1);
     expect(w[1]!.key).toBe("2083/84-BARSHE");
   });
 });

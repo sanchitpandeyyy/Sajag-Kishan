@@ -1,8 +1,3 @@
-/**
- * Disease and pest risk from weather, crop, growth stage and history (docs/10-prediction-models.md §4).
- * Farmers never diagnose anything: we warn ahead, explain why, and say how to prevent or respond.
- * Thresholds and advice are INITIAL VALUES pending review by NARC / Plant Protection Directorate.
- */
 import type { DailyForecast, HourlyForecast } from "./weather-alerts";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
@@ -17,29 +12,25 @@ export interface DiseaseAdvice {
   crop: string;
   name: Bilingual;
   level: RiskLevel;
-  /** 0..1, shown as a percentage with the reason. */
   score: number;
   why: Bilingual;
   prevent: Bilingual[];
   ifSigns: Bilingual[];
-  /** Days (ISO) when conditions are favourable. */
   days: string[];
   ruleVersion: string;
 }
 
 export interface RiskContext {
   crop: string;
-  /** Current calendar task for the field, e.g. "TRANSPLANTING", "FERTILIZING"; null if unknown. */
   stage?: string | null;
   hourly: HourlyForecast[];
   daily: DailyForecast[];
-  /** How many times this problem was alerted in the field's ward in past seasons. */
   pastAlertsInWard?: number;
 }
 
 interface DayStats {
   day: string;
-  humidHours: number; // RH >= 90 %
+  humidHours: number;
   minT: number;
   maxT: number;
   meanT: number;
@@ -72,9 +63,7 @@ interface Rule {
   code: string;
   crops: string[];
   name: Bilingual;
-  /** Stages when the crop is most exposed (empty = any stage). */
   stages: string[];
-  /** Returns favourable days. */
   favourable: (days: DayStats[]) => string[];
   why: Bilingual;
   prevent: Bilingual[];
@@ -87,7 +76,6 @@ const RULES: Rule[] = [
     crops: ["potato"],
     name: { ne: "डढुवा (लेट ब्लाइट)", en: "Late blight" },
     stages: [],
-    // Two or more days in a row with Tmin >= 10 °C and 11+ very humid hours (Smith-period style).
     favourable: (d) => d.filter((x, i) => i > 0 && x.minT >= 10 && x.humidHours >= 11 && d[i - 1]!.minT >= 10 && d[i - 1]!.humidHours >= 11).map((x) => x.day),
     why: { ne: "चिसो र धेरै ओसिलो (कुहिरो लाग्ने) मौसम लगातार दुई दिन भन्दा बढी।", en: "Cool, very humid (foggy) weather for two or more days in a row." },
     prevent: [
@@ -171,7 +159,6 @@ const RULES: Rule[] = [
 
 const RULE_VERSION = "disease-v0.2";
 
-/** All weather-driven problems that could affect this crop in the forecast window, highest risk first. */
 export function assessDiseaseRisk(ctx: RiskContext): DiseaseAdvice[] {
   const days = byDay(ctx.hourly, ctx.daily);
   const out: DiseaseAdvice[] = [];
@@ -181,7 +168,6 @@ export function assessDiseaseRisk(ctx: RiskContext): DiseaseAdvice[] {
     const fav = r.favourable(days);
     if (!fav.length) continue;
 
-    // Score: share of favourable days, + exposed stage, + history in the ward.
     let score = Math.min(1, fav.length / 4) * 0.6;
     if (!r.stages.length || (ctx.stage && r.stages.includes(ctx.stage))) score += 0.2;
     score += Math.min(0.2, (ctx.pastAlertsInWard ?? 0) * 0.05);
@@ -193,10 +179,8 @@ export function assessDiseaseRisk(ctx: RiskContext): DiseaseAdvice[] {
   return out.sort((a, b) => b.score - a.score);
 }
 
-/** Crops that have at least one rule (for the alert job). */
 export const CROPS_WITH_DISEASE_RULES = [...new Set(RULES.flatMap((r) => r.crops))];
 
-/** All rule texts, used as documents for the farmer assistant. */
 export function diseaseKnowledge(): { code: string; crop: string; name: Bilingual; why: Bilingual; prevent: Bilingual[]; ifSigns: Bilingual[] }[] {
   return RULES.flatMap((r) => r.crops.map((crop) => ({ code: r.code, crop, name: r.name, why: r.why, prevent: r.prevent, ifSigns: r.ifSigns })));
 }

@@ -1,10 +1,3 @@
-/**
- * ESA WorldCover 10 m land cover (2021, v200) from Microsoft Planetary Computer: is this point
- * cropland, forest, built-up, water...? Used to check that a registered field is actually on farmland
- * (a field "in the forest" is either a bad GPS point or a false claim), and to keep demo points honest.
- *
- * Reads the 5x5 pixels (50 m) around the point and reports the class mix.
- */
 import { epsgOf, readWindow, signHref, stacSearch, toSceneXY } from "./pc";
 
 const COLLECTION = "esa-worldcover";
@@ -24,14 +17,11 @@ export const WORLDCOVER_CLASSES: Record<number, { key: string; ne: string; en: s
 };
 
 export interface LandCover {
-  /** Class under the point. */
   centre: string | null;
-  /** Share of the 5x5 window that is cropland, 0 to 1. */
   croplandShare: number;
   mix: Record<string, number>;
   source: string;
 }
-
 
 async function itemFor(lat: number, lng: number, fetchImpl: typeof fetch) {
   const items = await stacSearch({ collections: [COLLECTION], intersects: { type: "Point", coordinates: [lng, lat] }, sortby: [{ field: "datetime", direction: "desc" }], limit: 1 }, fetchImpl);

@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * A real Sentinel-2 picture of a municipality, ward or field, with the registered fields drawn on top.
- * Switch between the true-colour photo and the NDVI map, and between seasons. Images are rendered by
- * Microsoft Planetary Computer (free); the backend only builds the links.
- */
 import { Image as ImageIcon, Leaf } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -34,10 +29,6 @@ export function NdviScale() {
   );
 }
 
-/**
- * statusById: optional satellite status per field id, to colour the points (dashboard data).
- * linkFor: optional link target per field (e.g. the farmer page).
- */
 export function AreaImage({
   localLevelId,
   ward,

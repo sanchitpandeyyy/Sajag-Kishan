@@ -14,14 +14,12 @@ const scopeQuery = z.object({
   season: z.enum(["BARSHE", "HIUDE", "CHAITE"]).optional(),
 });
 
-/** true = greened this season, false = 3+ clear readings and never green, null = not enough data. */
 function satelliteGreen(ndvi: (number | null)[]): boolean | null {
   const v = ndvi.filter((x): x is number => x != null);
   if (v.some((x) => x >= 0.4)) return true;
   return v.length >= 3 ? false : null;
 }
 
-/** Loads parcels + this season's declarations for the officer's scope. */
 async function loadScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) {
   const fiscalYearBs = q.fiscalYearBs ?? currentFiscalYearBs();
   const season = q.season ?? currentSeason();
@@ -30,7 +28,6 @@ async function loadScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeo
     include: {
       ward: { select: { id: true, number: true } },
       declarations: { where: { fiscalYearBs, season }, include: { crop: { select: { code: true, nameNe: true } }, inputs: true } },
-      // Sentinel-2 readings from the last 120 days (see src/satellite).
       observations: { where: { sensor: "S2", observedOn: { gte: new Date(Date.now() - 120 * 86_400_000) } }, select: { ndvi: true } },
       farmer: { select: { id: true, firstNameNe: true, lastNameNe: true, allocations: { where: { status: "DELIVERED", scheme: { kind: "FERTILIZER" } }, select: { id: true } } } },
     },
@@ -60,7 +57,6 @@ export const mapRoutes = new Hono<AppEnv>()
 
     const cropNames = new Map(parcels.flatMap((p) => p.declarations.map((d) => [d.crop.code, d.crop.nameNe] as const)));
 
-    // Fertilizer demand for the scope (declared cultivated area × dose).
     const needInputs: FarmerNeedInput[] = parcels.map((p) => ({
       farmerId: p.farmerId,
       registeredAreaM2: p.areaM2,

@@ -1,8 +1,3 @@
-/**
- * Terrain for a field from the Copernicus DEM GLO-30 (30 m) on Microsoft Planetary Computer:
- * elevation, slope and aspect. Altitude drives the crop calendar and suitability; slope and aspect
- * (sun-facing south slopes warm earlier) are model features.
- */
 import { slopeAspect } from "./indices";
 import { epsgOf, readWindow, signHref, stacSearch, toSceneXY } from "./pc";
 
@@ -28,7 +23,6 @@ export async function terrainAt(lat: number, lng: number, fetchImpl: typeof fetc
     const centre = w.values[Math.floor(w.values.length / 2)];
     return centre == null ? null : { elevationM: Math.round(centre), slopeDeg: null, aspectDeg: null, source: "Copernicus DEM GLO-30" };
   }
-  // Degrees to metres for a geographic grid.
   const cellX = epsg === 4326 ? w.resX * M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180) : w.resX;
   const cellY = epsg === 4326 ? w.resY * M_PER_DEG_LAT : w.resY;
   const sa = slopeAspect(w.values, cellX, cellY);

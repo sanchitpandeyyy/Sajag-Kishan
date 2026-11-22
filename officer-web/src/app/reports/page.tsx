@@ -17,7 +17,6 @@ interface FarmerRow {
   hasPassword: boolean;
 }
 
-/** CSV with a UTF-8 byte-order mark so Excel shows Devanagari correctly. */
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const esc = (v: string | number) => {
     const s = String(v);
@@ -63,7 +62,6 @@ export default function ReportsPage() {
       ...Object.entries(s.fertilizerDemandKg).map(([p, kg]) => [p, Math.round(kg), Math.ceil(kg / 50)]),
     ]);
 
-  // Personal data stays out of exports: no mobile or citizenship numbers.
   const farmerCsv = () =>
     farmers.data &&
     downloadCsv(`farmers-${stamp}.csv`, [

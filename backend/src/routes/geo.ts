@@ -2,7 +2,6 @@ import { getPrisma } from "../db";
 import { Hono } from "hono";
 import type { AppEnv } from "../types";
 
-/** Public admin-hierarchy lookups used by address pickers. */
 export const geoRoutes = new Hono<AppEnv>()
   .get("/provinces", async (c) => c.json(await getPrisma().province.findMany({ orderBy: { id: "asc" } })))
   .get("/districts", async (c) => {

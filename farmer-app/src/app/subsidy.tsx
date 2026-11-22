@@ -1,4 +1,3 @@
-/** Subsidy: what the farmer will get and what has already been received, one card per scheme. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";

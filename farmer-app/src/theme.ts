@@ -1,4 +1,3 @@
-/** Farmer-app theme built from the shared tokens (docs/08-design-system.md). */
 import { colors, gradients, radii, space, type } from "@/config/tokens";
 
 export const theme = {
@@ -13,7 +12,6 @@ export const theme = {
     body: "Mukta_400Regular",
     bodyBold: "Mukta_600SemiBold",
   },
-  /** Soft card shadow (matches web shadow-card). */
   shadow: {
     shadowColor: "#12151C",
     shadowOpacity: 0.06,
@@ -21,6 +19,5 @@ export const theme = {
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  /** Minimum touch target for farmers (larger than the 44pt guideline). */
   touch: 56,
 } as const;

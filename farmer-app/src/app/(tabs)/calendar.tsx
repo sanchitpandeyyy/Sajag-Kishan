@@ -1,7 +1,3 @@
-/**
- * Patro: a Bikram Sambat month calendar on top, the important farm dates of that month below.
- * Each kind of job has its own colour and icon, used on the calendar day and in the list.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -14,7 +10,6 @@ import { theme } from "@/theme";
 
 const c = theme.colors;
 
-/** One colour and icon per kind of job, so a farmer can read the month at a glance. */
 const TASK: Record<string, { icon: IconName; color: string; ne: string }> = {
   LAND_PREP: { icon: "construct", color: c.soil, ne: "खेत तयारी" },
   NURSERY: { icon: "flower", color: "#2E8B57", ne: "बिउ बेर्ना" },
@@ -29,7 +24,6 @@ const TASK: Record<string, { icon: IconName; color: string; ne: string }> = {
 };
 const FALLBACK = { icon: "checkmark-circle" as IconName, color: c.brand[800], ne: "काम" };
 const task = (key: string) => TASK[key] ?? FALLBACK;
-/** Gold needs dark text/icons; every other colour takes white. */
 const onColor = (color: string) => (color === c.accent ? c.ink : c.white);
 
 const CROP_NE: Record<string, string> = { paddy: "धान", wheat: "गहुँ", maize: "मकै", potato: "आलु", mustard: "तोरी", lentil: "मसुरो", millet: "कोदो" };
@@ -55,7 +49,6 @@ export default function CalendarTab() {
   const first = cells[0]!.iso;
   const last = cells[cells.length - 1]!.iso;
 
-  // Jobs that touch this month, in date order.
   const monthEvents = useMemo(
     () =>
       (cal.data?.events ?? [])
@@ -85,7 +78,6 @@ export default function CalendarTab() {
   };
   const isThisMonth = view.year === todayBs.year && view.month === todayBs.month;
 
-  // English month range under the Nepali title, e.g. "Nov to Dec 2026".
   const adLabel = (() => {
     const a = new Date(`${first}T00:00:00`);
     const b = new Date(`${last}T00:00:00`);
@@ -109,7 +101,6 @@ export default function CalendarTab() {
         </View>
       ) : null}
 
-      {/* Month calendar */}
       <Card>
         <View style={styles.monthBar}>
           <Pressable onPress={() => move(-1)} disabled={!canPrev} style={styles.navBtn} accessibilityLabel={tr("अघिल्लो महिना", "Previous month")} hitSlop={6}>
@@ -173,7 +164,6 @@ export default function CalendarTab() {
       {cal.error ? <ErrorText>{cal.error}</ErrorText> : null}
       {parcels.data?.length === 0 ? <Muted>{tr("खेत दर्ता भएपछि पात्रो देखिन्छ।", "The calendar appears once a field is registered.")}</Muted> : null}
 
-      {/* Colour key for the jobs that appear this month */}
       {usedKinds.length > 0 ? (
         <View style={styles.legend}>
           {usedKinds.map((k) => (
@@ -187,7 +177,6 @@ export default function CalendarTab() {
         </View>
       ) : null}
 
-      {/* Important dates */}
       <Card icon="star-outline" title={selected ? bsDateText(selected, lang) : tr("महत्त्वपूर्ण मिति", "Important dates")} action={selected ? <Pressable onPress={() => setSelected(null)} hitSlop={10} accessibilityLabel={tr("सबै", "All")}><Ionicons name="close-circle" size={26} color={c.inkMuted} /></Pressable> : undefined}>
         {listed.length === 0 ? (
           <View style={styles.empty}>

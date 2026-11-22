@@ -1,8 +1,3 @@
-/**
- * Province shapes for the national map, already projected to a 1000 x 575 box and simplified from the
- * public MoALD dashboard geometry (https://farmer.moald.gov.np/public/dashboard/).
- * `d` is the area to fill; `outline` is the province border to stroke.
- */
 export const MAP_VIEWBOX = "0 0 1000 574.95";
 
 export const PROVINCE_SHAPES: { en: string; d: string; outline: string }[] = [

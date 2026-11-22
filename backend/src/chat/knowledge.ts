@@ -1,9 +1,3 @@
-/**
- * The chat knowledge base: short bilingual passages built from the same engine data the app
- * uses (disease rules, crop calendars, fertilizer doses) plus a few general farming answers.
- * Retrieval is BM25 over Nepali text + English gloss, so it runs offline with no API key.
- * Passages are reviewed content only; nothing is generated here.
- */
 import { CALENDAR_TEMPLATES, CROPS, diseaseKnowledge, FERTILIZER_DOSE_KG_HA, ZONE_LABEL_NE } from "../engine";
 import { glossTokens, tokens } from "./lexicon";
 
@@ -23,7 +17,6 @@ const MONTH_NE = ["जनवरी", "फेब्रुअरी", "मार�
 const MONTH_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const SEASON_NE: Record<string, string> = { BARSHE: "बर्खे", HIUDE: "हिउँदे", CHAITE: "चैते" };
 
-/** kg per hectare -> kg per kattha / ropani, rounded to 0.1. */
 export function perLocalUnit(kgHa: number): { kattha: number; ropani: number } {
   return { kattha: Math.round((kgHa * M2_PER_KATTHA) / 1000) / 10, ropani: Math.round((kgHa * M2_PER_ROPANI) / 1000) / 10 };
 }
@@ -134,8 +127,6 @@ export function knowledgeBase(): KnowledgeDoc[] {
   return docs;
 }
 
-// ---- BM25 retrieval ----
-
 interface Indexed {
   doc: KnowledgeDoc;
   terms: Map<string, number>;
@@ -163,7 +154,6 @@ function buildIndex() {
   return { items, df, avgLen };
 }
 
-/** Top passages for a question (Nepali or English). `crops` boosts passages about those crops. */
 export function retrieve(question: string, opts: { k?: number; crops?: string[] } = {}): { doc: KnowledgeDoc; score: number }[] {
   index ??= buildIndex();
   const { items, df, avgLen } = index;

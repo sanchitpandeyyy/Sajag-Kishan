@@ -1,10 +1,3 @@
-/**
- * Gemini client (REST, no SDK). Used for:
- *   - transcribeNepali: audio -> Nepali text (voice input in the app)
- *   - toEnglish / toNepali: translation steps of the chat pipeline
- *   - composeEnglish: the grounded answer, written in English
- * Set GEMINI_API_KEY (and optionally GEMINI_MODEL) in backend/.env.
- */
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export function geminiConfigured(): boolean {
@@ -25,7 +18,6 @@ async function generate(parts: Part[], opts: { system?: string; json?: boolean; 
       generationConfig: {
         temperature: opts.temperature ?? 0.2,
         ...(opts.json ? { responseMimeType: "application/json" } : {}),
-        // Translation and short answers need no hidden reasoning; this keeps latency low.
         thinkingConfig: { thinkingBudget: 0 },
       },
     }),
@@ -42,7 +34,6 @@ export function geminiJson(system: string, text: string): Promise<string> {
   return generate([{ text }], { system, json: true, temperature: 0.2 });
 }
 
-/** Speech to Nepali text. Returns "" when nothing intelligible was said. */
 export async function transcribeNepali(audio: Buffer, mimeType: string): Promise<string> {
   const text = await generate(
     [
@@ -54,7 +45,6 @@ export async function transcribeNepali(audio: Buffer, mimeType: string): Promise
   return text.replace(/^["'`]+|["'`]+$/g, "").trim();
 }
 
-/** Nepali (or romanised Nepali / mixed) question -> plain English. */
 export function toEnglish(question: string): Promise<string> {
   return generate([{ text: question }], {
     system: "Translate the farmer's message from Nepali (it may be romanised Nepali or mixed with English) into plain, natural English. Keep crop, pesticide and place names. Output only the translation.",
@@ -62,7 +52,6 @@ export function toEnglish(question: string): Promise<string> {
   });
 }
 
-/** English answer -> simple spoken Nepali (Devanagari). */
 export function toNepali(answerEn: string): Promise<string> {
   return generate([{ text: answerEn }], {
     system:
@@ -71,7 +60,6 @@ export function toNepali(answerEn: string): Promise<string> {
   });
 }
 
-/** Grounded English answer. Only the supplied facts and knowledge may be used. */
 export function composeEnglish(input: { questionEn: string; history: { role: "user" | "assistant"; text: string }[]; facts: string; knowledge: string }): Promise<string> {
   const system = `You are "Sajag Kishan Sahayak", a farming helper for smallholder farmers in Nepal.
 - Answer in 2 to 4 short, simple English sentences. Put the action first. No headings, lists, markdown or emoji.

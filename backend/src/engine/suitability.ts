@@ -1,10 +1,5 @@
-/**
- * Explainable crop suitability (EcoCrop-style), docs/05-engine-algorithms.md §3.
- * suitability = min(tempScore, rainScore, phScore) × 100
- */
 import { CROPS, type CropParams, type Range4 } from "./crops";
 
-/** 0 outside [min,max], 1 inside [optLow,optHigh], linear in between. */
 export function trapezoid(x: number, [min, optLow, optHigh, max]: Range4): number {
   if (x <= min || x >= max) return 0;
   if (x >= optLow && x <= optHigh) return 1;
@@ -13,9 +8,7 @@ export function trapezoid(x: number, [min, optLow, optHigh, max]: Range4): numbe
 }
 
 export interface SiteConditions {
-  /** Mean temperature over the candidate growing season, °C. */
   seasonMeanTempC: number;
-  /** Total rainfall over the candidate growing season, mm. */
   seasonRainMm: number;
   soilPh?: number;
   irrigated?: boolean;
@@ -51,7 +44,6 @@ export function scoreCrop(crop: CropParams, site: SiteConditions): SuitabilityRe
   };
 }
 
-/** Rank all known crops for a site, best first. */
 export function rankCrops(site: SiteConditions, crops: readonly CropParams[] = CROPS): SuitabilityResult[] {
   return crops.map((c) => scoreCrop(c, site)).sort((a, b) => b.score - a.score);
 }

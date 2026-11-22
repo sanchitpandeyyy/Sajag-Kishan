@@ -30,7 +30,6 @@ const TOPICS: Record<string, { ne: string; en: string; icon: LucideIcon; tone: T
 };
 const topicOf = (k: string) => TOPICS[k] ?? TOPICS.general!;
 
-/** Officer: what farmers asked the Nepali helper, so the office can see what worries each ward. */
 export default function QuestionsPage() {
   const { tr, num } = useLang();
   const [intent, setIntent] = useState<string>("");

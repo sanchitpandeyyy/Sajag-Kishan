@@ -1,23 +1,3 @@
-/**
- * Demo seed for the pilot (docs/00-status.md).
- * Pilot: Bhimdatta Municipality, Kanchanpur, Sudurpashchim Province (decided 2026-11-21).
- * IDs are internal demo IDs, not official CBS/LGCDP codes. Ward centroids are approximate
- * (no official ward boundaries yet). All demo farmers and numbers are FAKE.
- *
- * Owner logins (password OWNER_PASSWORD, see seedOwnerAccounts):
- *   agriculture side (super admin): 9841148149
- *   farmer app: 9800000000
- * Demo logins (local/demo only), password = SEED_PASSWORD or "krishi1234":
- *   super admin: 9800000002   agriculture officer: 9800000001
- *   farmers: 9800000101 … 9800000120 (farmer 9800000120 has NO password, to demo the
- *   officer issuing a temporary password from the dashboard; there is no OTP)
- * Users are Better Auth rows (user + credential account) created via src/lib/accounts.ts.
- *
- * Safe to run again. An older database seeded for Ratnanagar (Chitwan) is moved to Bhimdatta:
- * officers, demo farmers and the owner's fields are re-pointed, and the moved fields' cached
- * satellite readings and predictions are cleared so the next sync reads the new location.
- * Nothing else is deleted.
- */
 import { CROPS } from "../src/engine";
 import { toSquareMetres } from "../src/shared";
 import { createPrismaClient } from "../src/db";
@@ -32,16 +12,10 @@ const PILOT = {
   district: { id: 71, nameNe: "कञ्चनपुर", nameEn: "Kanchanpur" },
   localLevel: { id: 7101, nameNe: "भीमदत्त नगरपालिका", nameEn: "Bhimdatta Municipality", type: "MUNICIPALITY" as const },
   wards: 19,
-  // Farmland around Mahendranagar (Sentinel-2 view, 2026-11-18): the forest lies south of 28.96 and
-  // the Mahakali river west of 80.12, so ward centroids are spread over this box only.
   lat: { min: 28.94, max: 29.01 },
   lng: { min: 80.13, max: 80.245 },
 };
 
-/**
- * Demo field locations, each confirmed as cropland in ESA WorldCover 10 m (at least 80% of the
- * 50 m around the point, cropland at the centre). Random points would land in the forest or river.
- */
 const DEMO_FIELDS: [number, number][] = [
   [28.9387, 80.232], [28.9621, 80.1316], [28.9402, 80.248], [29.008, 80.1914], [28.9804, 80.2222],
   [28.9419, 80.2186], [28.9692, 80.1385], [28.9436, 80.2027], [28.993, 80.1356], [28.9804, 80.2408],
@@ -49,14 +23,12 @@ const DEMO_FIELDS: [number, number][] = [
   [28.9484, 80.1253], [28.9459, 80.1929], [28.9507, 80.1315], [28.992, 80.1513], [28.9732, 80.2195],
 ];
 
-/** Ward whose (approximate) centroid is nearest to the point. */
 function nearestWard(wards: WardRow[], lat: number, lng: number): WardRow {
   return wards.reduce((best, w) => (Math.hypot((w.centroidLat ?? 0) - lat, (w.centroidLng ?? 0) - lng) < Math.hypot((best.centroidLat ?? 0) - lat, (best.centroidLng ?? 0) - lng) ? w : best), wards[0]!);
 }
 
 const samePoint = (a: number | null, b: number | null) => a != null && b != null && Math.abs(a - b) < 1e-6;
 
-/** Demo tole names (generic, not official). */
 const TOLES = ["पूर्वी टोल", "पश्चिमी टोल", "बजार टोल", "खोला किनार", "चोक टोल", "नयाँ बस्ती"];
 const FIRST = ["राम", "सीता", "हरि", "गीता", "कृष्ण", "माया", "बिष्णु", "सरिता", "दिल", "कमला"];
 const LAST = ["भट्ट", "जोशी", "चौधरी", "बिष्ट", "राना", "अवस्थी"];
@@ -113,7 +85,6 @@ async function main() {
     });
   }
 
-  // Officers. Profiles are re-pointed to the pilot municipality on every run.
   const officers = [
     { mobile: "9800000002", name: "Super Admin", role: "SUPER_ADMIN" as const, profile: { fullName: "सुपर एडमिन (डेमो)", designation: "Super Admin", localLevelId: ll.id } },
     { mobile: "9800000001", name: "Agriculture Officer", role: "AGRICULTURE_OFFICER" as const, profile: { fullName: "कृषि अधिकृत (डेमो)", designation: "कृषि शाखा प्रमुख", localLevelId: ll.id } },
@@ -149,7 +120,6 @@ async function main() {
 
     const existing = await prisma.farmer.findUnique({ where: { userId }, select: { id: true, parcels: { select: { id: true, centroidLat: true, centroidLng: true } } } });
     if (existing) {
-      // Older database: move this demo farmer and their field onto the checked cropland point.
       const p = existing.parcels[0];
       const target = mapped ? { lat, lng } : { lat: null, lng: null };
       const moved = p && (mapped ? !(samePoint(p.centroidLat, lat) && samePoint(p.centroidLng, lng)) : p.centroidLat != null);
@@ -198,7 +168,7 @@ async function main() {
       include: { parcels: true },
     });
     const parcel = farmer.parcels[0]!;
-    if (i % 6 === 0) continue; // some parcels have no declaration → counted as fallow/no data
+    if (i % 6 === 0) continue;
     await prisma.seasonDeclaration.create({
       data: {
         parcelId: parcel.id,
@@ -210,7 +180,6 @@ async function main() {
         inputs: i % 2 === 0 ? { create: [{ kind: "FERTILIZER", product: "Urea", quantityKg: Math.round((parcel.areaM2 / 10000) * 100) }] } : undefined,
       },
     });
-    // Current-season declaration so the dashboard's default view has data.
     if (season !== "BARSHE" && i % 5 !== 0) {
       const crop = winterCrops[i % winterCrops.length]!;
       await prisma.seasonDeclaration.create({
@@ -232,7 +201,6 @@ async function main() {
   console.log("Seed complete: %s, %d wards, %d crops, 2 super admins, 1 agriculture officer, 21 farmers (season %s, FY %s).", PILOT.localLevel.nameEn, PILOT.wards, CROPS.length, season, fiscalYearBs);
 }
 
-/** 9800000000 used to be the demo super admin; it is now the owner's farmer login. */
 async function moveOldSuperAdmin() {
   const old = await prisma.user.findUnique({ where: { phoneNumber: "9800000000" }, select: { id: true, role: true } });
   if (old && old.role !== "FARMER" && !(await prisma.user.findUnique({ where: { phoneNumber: "9800000002" } }))) {
@@ -240,7 +208,6 @@ async function moveOldSuperAdmin() {
   }
 }
 
-/** Point a field at a new place and clear the cached satellite data that belonged to the old place. */
 async function relocateParcel(parcelId: string, to: { wardId: number; tole: string; lat: number | null; lng: number | null; elevationM: number | null }) {
   await prisma.satelliteObservation.deleteMany({ where: { parcelId } });
   await prisma.modelPrediction.deleteMany({ where: { parcelId } });
@@ -259,17 +226,6 @@ async function relocateParcel(parcelId: string, to: { wardId: number; tole: stri
   });
 }
 
-/**
- * The project owner's own accounts (local/demo only):
- *   agriculture side (super admin, officer web): OWNER_OFFICER_PHONE / OWNER_PASSWORD
- *   farmer app: OWNER_FARMER_PHONE / OWNER_PASSWORD (phone sign-in only; no email sign-in)
- * The farmer gets three real fields near Bhimdatta, each 100% cropland in ESA WorldCover and checked on the
- * Sentinel-2 image of 2026-11-18 (an earlier pick at 28.930, 80.160 turned out to be forest):
- *   field 1 (28.995, 80.170): north of the town, verified
- *   field 2 (28.951, 80.230): east of the town
- *   field 3 (28.955, 80.135): west of the town; low NDVI this year (a good test case for the checks)
- * Passwords are reset on every seed run so the documented login always works.
- */
 async function seedOwnerAccounts(localLevelId: number, wards: WardRow[], fiscalYearBs: string, season: Season) {
   const officerPhone = process.env.OWNER_OFFICER_PHONE ?? "9841148149";
   const farmerPhone = process.env.OWNER_FARMER_PHONE ?? "9800000000";
@@ -283,7 +239,6 @@ async function seedOwnerAccounts(localLevelId: number, wards: WardRow[], fiscalY
 
   const farmerUserId = await ensurePhoneUser(prisma, { mobile: farmerPhone, name: "Sanchit Pandey", role: "FARMER", password, phoneVerified: true });
   await setPassword(prisma, farmerUserId, password);
-  // Email sign-in is off (decided 2026-11-21), so keep only the placeholder address.
   await prisma.user.update({ where: { id: farmerUserId }, data: { email: placeholderEmail(farmerPhone), emailVerified: false } });
 
   const [w1, w2, w3] = [nearestWard(wards, 28.995, 80.17), nearestWard(wards, 28.951, 80.23), nearestWard(wards, 28.955, 80.135)];
@@ -295,7 +250,6 @@ async function seedOwnerAccounts(localLevelId: number, wards: WardRow[], fiscalY
 
   const existing = await prisma.farmer.findUnique({ where: { userId: farmerUserId }, select: { id: true, farmingWardId: true, parcels: { select: { id: true, localName: true, wardId: true, centroidLat: true, centroidLng: true } } } });
   if (existing) {
-    // Older database: move the owner and their three fields to Bhimdatta.
     const wardIds = new Set(wards.map((w) => w.id));
     if (!wardIds.has(existing.farmingWardId)) {
       await prisma.farmer.update({ where: { id: existing.id }, data: { permanentWardId: w1.id, permanentTole: fields[0]!.tole, farmingWardId: w1.id, farmingTole: fields[0]!.tole, citizenshipNo: "71-01-99001", citizenshipDistrictId: PILOT.district.id } });

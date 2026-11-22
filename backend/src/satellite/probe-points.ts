@@ -1,8 +1,3 @@
-/**
- * Check candidate points with Sentinel-2 before using them as demo fields:
- *   npx tsx src/satellite/probe-points.ts lat,lng lat,lng ...
- * Prints peak and latest NDVI over the last 12 months (clear scenes only).
- */
 import { greennessVerdict, indicesAt, searchScenes } from "./sentinel2";
 
 const points = process.argv.slice(2).map((s) => s.split(",").map(Number) as [number, number]);
@@ -15,7 +10,6 @@ for (const [lat, lng] of points) {
     try {
       readings.push(await indicesAt(s, lat, lng));
     } catch {
-      // skip
     }
   }
   const v = greennessVerdict(readings);

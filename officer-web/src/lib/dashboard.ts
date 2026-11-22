@@ -1,4 +1,3 @@
-/** Types and labels for GET /v1/dashboard (backend/src/routes/dashboard.ts). */
 import { CircleOff, EyeOff, FilePlus, HandCoins, Ruler, Trees, type LucideIcon } from "lucide-react";
 import type { AreaByStatus, FieldStatus } from "@/components/land-charts";
 
@@ -78,7 +77,6 @@ export const PRODUCTIVITY: Record<Productivity, { ne: string; en: string; color:
   unknown: { ne: "थाहा छैन", en: "Not enough data", color: "#c3c8d1" },
 };
 
-/** "2083/84-BARSHE" -> "बर्खे ८३/८४" or "Monsoon 83/84". */
 export function seasonShort(key: string, tr: (ne: string, en: string) => string): string {
   const [fy = "", season = ""] = key.split("-");
   const yy = fy.slice(2);

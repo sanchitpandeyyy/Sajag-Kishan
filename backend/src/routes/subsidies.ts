@@ -19,7 +19,6 @@ const schemeSchema = z.object({
 
 export const subsidyRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
-  /** Farmer: own allocations (transparency). */
   .get("/mine", async (c) => {
     const farmerId = await farmerIdFor(c.get("user"));
     return c.json(await getPrisma().subsidyAllocation.findMany({ where: { farmerId }, include: { scheme: true }, orderBy: { createdAt: "desc" } }));
@@ -69,7 +68,6 @@ export const subsidyRoutes = new Hono<AppEnv>()
       })),
     );
   })
-  /** Saved allocation lines for a scheme, limited to farmers the officer can see. */
   .get("/schemes/:id/allocations", requireRole(...OFFICER_ROLES), async (c) => {
     const user = c.get("user");
     const prisma = getPrisma();
@@ -99,7 +97,6 @@ export const subsidyRoutes = new Hono<AppEnv>()
   })
   .post("/schemes", requireRole(...OFFICER_ROLES), zValidator("json", schemeSchema), async (c) => {
     const body = c.req.valid("json");
-    // Officers always create schemes for their own local level; the super admin may choose.
     const ownLocalLevel = await officerLocalLevelId(c.get("user"));
     const scheme = await getPrisma().subsidyScheme.create({
       data: {
@@ -114,10 +111,6 @@ export const subsidyRoutes = new Hono<AppEnv>()
     });
     return c.json(scheme, 201);
   })
-  /**
-   * Compute (and optionally save) a need-based allocation plan for a scheme across
-   * every farmer in the officer's scope who has a declaration this season.
-   */
   .post("/schemes/:id/plan", requireRole(...OFFICER_ROLES), zValidator("json", z.object({ save: z.boolean().default(false) })), async (c) => {
     const user = c.get("user");
     const prisma = getPrisma();

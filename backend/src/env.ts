@@ -9,7 +9,6 @@ const port = Number(process.env.API_PORT ?? process.env.PORT ?? 8787);
 export const env = {
   isProd,
   port,
-  /** Public URL of this API (Better Auth baseURL). */
   authUrl: process.env.BETTER_AUTH_URL ?? `http://localhost:${port}`,
   authSecret,
   corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000").split(",").map((s) => s.trim()).filter(Boolean),

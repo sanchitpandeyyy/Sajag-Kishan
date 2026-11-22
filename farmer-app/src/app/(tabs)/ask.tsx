@@ -1,7 +1,3 @@
-/**
- * Ask: talk to the farming helper in Nepali. One big mic button, a few starter questions,
- * answers read aloud. Answers come from the farmer's own data and reviewed knowledge.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -87,7 +83,6 @@ export default function Ask() {
       try {
         const heard = await recorder.stop();
         if (heard) {
-          // Send what was heard straight away; the answer is then read aloud.
           setTranscribing(false);
           void send(heard, true);
         } else {

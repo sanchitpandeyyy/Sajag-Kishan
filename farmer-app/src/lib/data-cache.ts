@@ -30,7 +30,6 @@ export function memoryDelete(path: string) {
   memory.delete(path);
 }
 
-/** Mark everything stale after a change, so other screens refetch; saved copies stay for offline use. */
 export function markAllStale() {
   for (const [k, v] of memory) memory.set(k, { ...v, at: 0 });
 }
@@ -41,7 +40,6 @@ async function persist(path: string, entry: Entry) {
     if (!d.exists) d.create({ intermediates: true, idempotent: true });
     await fileFor(path).write(JSON.stringify({ path, ...entry }));
   } catch {
-    // storage full or unavailable: memory cache still works
   }
 }
 
@@ -59,13 +57,11 @@ export async function diskGet(path: string): Promise<Entry | undefined> {
   }
 }
 
-/** Forget everything (on sign out, so the next person on this phone never sees the last farmer's data). */
 export function clearDataCache() {
   memory.clear();
   try {
     const d = dir();
     if (d.exists) d.delete();
   } catch {
-    // ignore
   }
 }

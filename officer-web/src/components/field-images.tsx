@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * Satellite picture timeline for one field: for each clear Sentinel-2 date, the true-colour photo and
- * the NDVI map of the ~900 m around the field (the field is the ring in the middle), with what the
- * system read at the field on that date.
- */
 import { Image as ImageIcon, Leaf } from "lucide-react";
 import { useState } from "react";
 import { NdviScale } from "@/components/area-image";

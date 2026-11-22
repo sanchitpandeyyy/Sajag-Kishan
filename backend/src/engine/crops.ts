@@ -1,22 +1,13 @@
-/**
- * Crop parameters for the suitability model (EcoCrop-style).
- * INITIAL VALUES approximated from FAO EcoCrop ranges. They must be reviewed by
- * agronomists before the pilot (docs/05-engine-algorithms.md §3).
- */
 export type Range4 = readonly [min: number, optLow: number, optHigh: number, max: number];
 
 export interface CropParams {
   code: string;
   nameNe: string;
   nameEn: string;
-  /** Mean temperature during the growing season, °C. */
   temp: Range4;
-  /** Rainfall during the growing season, mm. */
   rain: Range4;
   soilPh: Range4;
-  /** Base temperature for growing degree days, °C. */
   gddBase: number;
-  /** Typical days from sowing to harvest. */
   durationDays: number;
 }
 

@@ -1,7 +1,3 @@
-/**
- * Tiny toast for errors and notices. Call showToast("text") from anywhere (screens, hooks, api code);
- * <ToastHost /> in the root layout draws it at the top and hides it after a few seconds.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text } from "react-native";
@@ -21,7 +17,6 @@ const listeners = new Set<(t: ToastItem) => void>();
 
 export function showToast(text: string, kind: Kind = "error") {
   const now = Date.now();
-  // The same message twice in a row (several screens failing together) shows once.
   if (last && last.text === text && now - last.at < 3000) return;
   last = { text, at: now };
   console.warn(`[toast:${kind}] ${text}`);

@@ -1,9 +1,5 @@
 "use client";
 
-/**
- * Small, dependency-free charts for the land transparency dashboard. Satellite status colours are
- * fixed everywhere: cultivated green, weak amber, fallow brown, not checked grey.
- */
 import { useLang } from "@/lib/i18n";
 
 export type FieldStatus = "cultivated" | "weak" | "fallow" | "unknown";
@@ -33,7 +29,6 @@ export function StatusLegend({ className = "" }: { className?: string }) {
   );
 }
 
-/** One horizontal bar split by satellite status, with the hectares of each part underneath. */
 export function StatusBar({ areas, showValues = true }: { areas: AreaByStatus; showValues?: boolean }) {
   const { tr, num } = useLang();
   const total = ORDER.reduce((s, k) => s + areas[k], 0) || 1;
@@ -61,7 +56,6 @@ export function StatusBar({ areas, showValues = true }: { areas: AreaByStatus; s
   );
 }
 
-/** Labelled horizontal bars on one scale (for "registered vs declared vs satellite"). */
 export function CompareBars({ rows, unit }: { rows: { label: string; value: number; color: string; note?: string }[]; unit: string }) {
   const { num } = useLang();
   const max = Math.max(...rows.map((r) => r.value), 1);
@@ -85,10 +79,6 @@ export function CompareBars({ rows, unit }: { rows: { label: string; value: numb
   );
 }
 
-/**
- * Stacked columns, one per season, split by satellite status. A dark tick marks the area farmers
- * declared cultivated in that season, so the gap between claim and satellite is visible at a glance.
- */
 export function SeasonColumns({ seasons }: { seasons: { key: string; label: string; satellite: AreaByStatus; declared: number | null; inProgress: boolean }[] }) {
   const { tr, num } = useLang();
   const max = Math.max(...seasons.map((s) => ORDER.reduce((a, k) => a + s.satellite[k], 0)), 1);

@@ -1,7 +1,3 @@
-/**
- * GET /v1/me: the signed-in user with their farmer or officer profile.
- * Sign-in, change-password and sign-out are Better Auth endpoints under /v1/auth/* (no OTP).
- */
 import { Hono } from "hono";
 import { getPrisma } from "../db";
 import { requireAuth } from "../auth";

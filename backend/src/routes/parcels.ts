@@ -103,10 +103,6 @@ export const parcelRoutes = new Hono<AppEnv>()
       return c.json(updated);
     },
   )
-  /**
-   * Set a field's location from the phone's GPS (farmer: own fields; officer: fields in scope).
-   * A farmer moving a field resets verification, since the officer verified the old spot.
-   */
   .patch(
     "/:id/location",
     zValidator("json", geoPointSchema.extend({ accuracyM: z.number().nonnegative().max(5000).optional() })),

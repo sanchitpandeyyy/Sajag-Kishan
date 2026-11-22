@@ -1,8 +1,3 @@
-/**
- * Sync satellite data for mapped fields from the command line (no officer session needed):
- *   npx tsx src/satellite/sync-all.ts [limit]
- * Same work as POST /v1/satellite/sync, run in the foreground with a log line per field.
- */
 import { getPrisma } from "../db";
 import { syncParcel } from "./sync";
 

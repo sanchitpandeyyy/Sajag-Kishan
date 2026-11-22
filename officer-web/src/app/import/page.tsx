@@ -17,7 +17,6 @@ interface ImportReport {
   archivedKey: string | null;
 }
 
-/** Columns read by backend/src/integrations/registry.ts (CsvRegistryAdapter). */
 const COLUMNS = [
   "externalId",
   "mobile",

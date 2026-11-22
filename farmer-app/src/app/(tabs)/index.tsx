@@ -1,4 +1,3 @@
-/** Home: today at a glance (weather, next job, subsidy), then big shortcuts to everything else. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -25,7 +24,6 @@ export default function Home() {
   const [remind, setRemind] = useState(true);
   const [permission, setPermission] = useState<boolean | null>(null);
 
-  // The alarm switch lives in Settings; pick up changes whenever Home is shown again.
   useFocusEffect(
     useCallback(() => {
       void remindersEnabled().then(setRemind);
@@ -33,7 +31,6 @@ export default function Home() {
     }, []),
   );
 
-  // Keep phone alarms in step with the calendar and alerts.
   useEffect(() => {
     if (remind && permission && calendar.data) void scheduleTaskReminders(calendar.data.events, lang);
   }, [remind, permission, calendar.data, lang]);
@@ -53,7 +50,6 @@ export default function Home() {
   const alert = feed.data?.alerts.find((a) => a.severity === "SEVERE") ?? feed.data?.alerts[0];
   const severe = alert?.severity === "SEVERE";
   const next = useMemo(() => calendar.data?.events.find((e) => isActiveOrUpcoming(e.endsOn)), [calendar.data]);
-  // Show the allocation still to come first; otherwise the latest one received.
   const sub = useMemo(() => subsidy.data?.find((a) => a.status !== "DELIVERED") ?? subsidy.data?.[0], [subsidy.data]);
   const subGot = sub?.status === "DELIVERED";
   const today = dateText(new Date().toISOString().slice(0, 10), lang);
@@ -71,7 +67,6 @@ export default function Home() {
     <Screen title={tr(`नमस्ते${name ? ` ${name}` : ""}`, `Hello${name ? ` ${name}` : ""}`)} headerRight={<DateChip text={today} />} refreshing={me.loading || feed.loading} onRefresh={refresh}>
       <Text style={styles.section}>{tr("आज", "Today")}</Text>
 
-      {/* Weather or danger */}
       <Pressable onPress={() => router.push("/alerts")} accessibilityRole="button">
         <Card style={severe ? { borderColor: c.danger } : undefined}>
           {feed.loading && !feed.data ? (
@@ -91,7 +86,6 @@ export default function Home() {
         </Card>
       </Pressable>
 
-      {/* Next job */}
       <Pressable onPress={() => router.push("/calendar")} accessibilityRole="button">
         <Card>
           {calendar.loading && !calendar.data ? (
@@ -121,7 +115,6 @@ export default function Home() {
         </Card>
       </Pressable>
 
-      {/* Subsidy */}
       <Pressable onPress={() => router.push("/subsidy")} accessibilityRole="button">
         <Card>
           {subsidy.loading && !subsidy.data ? (

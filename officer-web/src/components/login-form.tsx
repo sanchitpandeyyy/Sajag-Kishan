@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * Officer / admin sign-in (mobile + password, no OTP). Used on the landing page and /login.
- * Temporary passwords must be replaced before entering the admin side.
- * On success → /dashboard (or a safe ?next= path).
- */
 import { useEffect, useState } from "react";
 import { authClient, authErrorNe, isOfficerRole } from "@/lib/auth-client";
 import { buttonClass } from "@/components/ui";
@@ -22,7 +17,6 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Sent here because the password is still temporary: start over so we have the current password.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("change") === "1") {
       void authClient.signOut();
@@ -53,7 +47,6 @@ export function LoginForm({ compact = false }: { compact?: boolean }) {
       if (error) return setError(errorText(error.code, error.message));
       const user = data?.user as { role?: string; mustChangePassword?: boolean } | undefined;
       if (!isOfficerRole(user?.role)) {
-        // Same message as a wrong password: never reveal that a non-officer account exists.
         await authClient.signOut();
         return setError(errorText("INVALID_PHONE_NUMBER_OR_PASSWORD"));
       }

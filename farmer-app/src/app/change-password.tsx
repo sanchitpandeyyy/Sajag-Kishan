@@ -1,7 +1,3 @@
-/**
- * Shown right after signing in with a temporary password issued by the agriculture
- * officer. The farmer must choose their own password before using the app. No OTP.
- */
 import { useState } from "react";
 import { AuthScreen } from "@/components/auth-screen";
 import { Field, LinkButton, Message, PrimaryButton } from "@/components/form";
@@ -27,7 +23,6 @@ export default function ChangePassword() {
       setBusy(false);
       return setError(error.code === "INVALID_PASSWORD" ? tr("अस्थायी पासवर्ड मिलेन", "The temporary password is incorrect") : tr("पासवर्ड बदल्न सकिएन", "Could not change the password"));
     }
-    // Bypass the 5-minute session cookie cache so the guard sees mustChangePassword = false.
     await authClient.getSession({ query: { disableCookieCache: true } });
     await refetch();
     setBusy(false);

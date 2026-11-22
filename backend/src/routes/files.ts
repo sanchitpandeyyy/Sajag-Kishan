@@ -1,13 +1,3 @@
-/**
- * Files in Neon Object Storage.
- *
- * POST /v1/files            multipart: file, entity ("parcel"), entityId → stores the object,
- *                           records a FileObject row, returns a presigned download URL.
- * GET  /v1/files?entity=&entityId=  list files for something you can see.
- * GET  /v1/files/:id/url    fresh presigned URL (15 min).
- *
- * Access: farmers only for their own parcels; officers for parcels in their local level.
- */
 import { Hono } from "hono";
 import { audit } from "../audit";
 import { OFFICER_ROLES, requireAuth } from "../auth";
@@ -18,7 +8,6 @@ import type { AppEnv, AuthUser } from "../types";
 
 const ENTITIES = new Set(["parcel"]);
 
-/** May this user attach/read files on this entity? */
 async function canAccess(user: AuthUser, entity: string, entityId: string): Promise<boolean> {
   if (entity !== "parcel") return OFFICER_ROLES.includes(user.role);
   const prisma = getPrisma();

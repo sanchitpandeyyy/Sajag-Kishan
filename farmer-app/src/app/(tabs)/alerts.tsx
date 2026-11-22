@@ -1,7 +1,3 @@
-/**
- * Alerts: a summary strip, then one clear card per warning, crop risk and office notice.
- * Same look as My fields: icon first, few words, a quiet grey strip for the details.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -14,7 +10,6 @@ import { theme } from "@/theme";
 
 const c = theme.colors;
 
-/** One clear icon per warning type, so a farmer knows the danger before reading. */
 const ICON: Record<string, IconName> = {
   HEAVY_RAIN: "rainy",
   FLOOD_RISK: "water",
@@ -68,7 +63,6 @@ export default function AlertsTab() {
       {feed.loading && !feed.data ? <Loading /> : null}
       {feed.error ? <ErrorText>{feed.error}</ErrorText> : null}
 
-      {/* Filters */}
       {loaded && !allClear ? (
         <View style={styles.filters}>
           {filters.map((f) => {
@@ -113,7 +107,6 @@ export default function AlertsTab() {
         </Card>
       ) : null}
 
-      {/* Weather warnings */}
       {show("weather") && alerts.length > 0 ? <SectionTitle text={tr("मौसमको चेतावनी", "Weather warnings")} /> : null}
       {(show("weather") ? alerts : []).map((a) => {
         const isSevere = a.severity === "SEVERE";
@@ -139,7 +132,6 @@ export default function AlertsTab() {
         );
       })}
 
-      {/* Crop risk this week */}
       {show("risk") && risks.length > 0 ? <SectionTitle text={tr("यो हप्ताको बाली जोखिम", "Crop risk this week")} /> : null}
       {(show("risk") ? risks : []).map((r) => {
         const high = r.level === "HIGH";
@@ -180,7 +172,6 @@ export default function AlertsTab() {
         );
       })}
 
-      {/* Office notices */}
       {show("office") && notices.length > 0 ? <SectionTitle text={tr("कृषि शाखाबाट", "From the office")} /> : null}
       {(show("office") ? notices : []).map((n) => (
         <Card key={n.id}>

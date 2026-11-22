@@ -1,15 +1,3 @@
-/**
- * Land-use model features, one fixed-order vector per field. Pure (no database), so the training
- * export (ml/export) and live prediction use exactly the same maths.
- *
- * Sources: Sentinel-2 indices (NDVI, NDRE, NDWI, NDMI, EVI, SAVI), Sentinel-1 backscatter (VV, VH),
- * terrain (Copernicus DEM), the field record (irrigation) and ERA5 climate for the field's ward
- * (rainfall, temperature, topsoil moisture, evapotranspiration). Missing values are NaN; the model
- * handles them.
- *
- * ml/train_landuse.py has the same list in FEATURES; the two must match exactly (names and order).
- */
-
 export const LANDUSE_FEATURES = [
   "ndvi_max",
   "ndvi_mean",
@@ -70,7 +58,6 @@ export interface ClimateRow {
   et0Mm: number | null;
 }
 
-/** A day counts as hot at or above this maximum temperature (heat stress for rice, wheat and maize). */
 export const HOT_DAY_C = 35;
 
 const nums = (xs: (number | null | undefined)[]) => xs.filter((x): x is number => x != null && Number.isFinite(x));
@@ -78,7 +65,6 @@ const max = (xs: number[]) => (xs.length ? Math.max(...xs) : Number.NaN);
 const min = (xs: number[]) => (xs.length ? Math.min(...xs) : Number.NaN);
 const avg = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : Number.NaN);
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
-/** Population standard deviation; needs at least two values. */
 const std = (xs: number[]) => {
   if (xs.length < 2) return Number.NaN;
   const m = avg(xs);
@@ -87,10 +73,6 @@ const std = (xs: number[]) => {
 const r3 = (x: number) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : Number.NaN);
 const r1 = (x: number) => (Number.isFinite(x) ? Math.round(x * 10) / 10 : Number.NaN);
 
-/**
- * Climate totals need most of the window covered: a rainfall total over half a year of data would
- * look like a drought. Below this share of days the feature is NaN instead.
- */
 const MIN_COVERAGE = 0.8;
 
 function climateFeatures(climate: ClimateRow[], now: number, days: number) {
@@ -101,7 +83,6 @@ function climateFeatures(climate: ClimateRow[], now: number, days: number) {
   const rainYear = nums(year.map((c) => c.precipMm));
   const rainRecent = nums(recent.map((c) => c.precipMm));
   const et0Year = nums(year.map((c) => c.et0Mm));
-  // The archive runs about 5 days behind, so expect a few days fewer than the window.
   const yearOk = (n: number) => n >= MIN_COVERAGE * (days - 5);
   const recentOk = (n: number) => n >= MIN_COVERAGE * (90 - 5);
   const tmax = nums(year.map((c) => c.tempMaxC));
@@ -115,7 +96,6 @@ function climateFeatures(climate: ClimateRow[], now: number, days: number) {
   };
 }
 
-/** Feature vector for one field from its observations within the window (default: last 365 days). */
 export function landuseFeatures(
   obs: ObservationRow[],
   field: FieldRow,

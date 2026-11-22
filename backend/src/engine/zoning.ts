@@ -1,4 +1,3 @@
-/** Agro-ecological zoning by elevation (docs/05-engine-algorithms.md §1). */
 export type AgroZone = "TERAI" | "LOWER_HILL" | "MID_HILL" | "UPPER_HILL" | "MOUNTAIN";
 
 export const ZONE_LABEL_NE: Record<AgroZone, string> = {
@@ -19,12 +18,10 @@ export function zoneForElevation(elevationM: number): AgroZone {
 
 export const LAPSE_RATE_C_PER_M = -0.0065;
 
-/** Adjust a temperature measured at `fromElevationM` to `toElevationM`. */
 export function adjustTempForElevation(tempC: number, fromElevationM: number, toElevationM: number): number {
   return tempC + (toElevationM - fromElevationM) * LAPSE_RATE_C_PER_M;
 }
 
-/** Growing degree days for one day (simple average method). */
 export function dailyGdd(tMin: number, tMax: number, base: number): number {
   return Math.max(0, (tMin + tMax) / 2 - base);
 }

@@ -1,17 +1,3 @@
-/**
- * GET /v1/dashboard?localLevelId=&seasons=
- *
- * One municipality at a time, for any municipality in Nepal: an agriculture officer always gets their
- * own; the super admin may pick any (default: their own profile's). Answers, from data we already hold:
- *   - how many farmers and fields, how many are mapped
- *   - registered land vs land the farmers declared cultivated vs land the satellite saw cultivated
- *   - the same season by season (previous seasons from Sentinel-2 history)
- *   - fertilized vs unfertilized cultivated land
- *   - per ward, the same comparison
- *   - fields to check: subsidy on fallow land, declared but not seen, abandoned, over-claimed area
- *   - a productivity indicator (field NDVI peaks vs the municipality median)
- * Every satellite figure is an indicator for a field visit, not proof (AGENT.md rule 6).
- */
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -52,7 +38,7 @@ async function resolveLocalLevel(user: { id: string; role: string }, requested?:
     return any.id;
   }
   if (!profile) throw new HTTPException(403, { message: "officer_profile_missing" });
-  return profile.localLevelId; // officers only ever see their own municipality
+  return profile.localLevelId;
 }
 
 export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireRole(...OFFICER_ROLES)).get("/", zValidator("query", query), async (c) => {
@@ -63,7 +49,6 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
 
   const windows = seasonWindows(new Date(), q.seasons);
   const current = windows.at(-1)!;
-  // Compare against the latest season whose crops have had time to grow; the current one may be too young.
   const mainIdx = latestJudgeableIndex(windows, new Date());
   const main = windows[mainIdx]!;
   const since = windows[0]!.from;
@@ -103,11 +88,9 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
       : Promise.resolve([]),
   ]);
 
-  // Farmer-level fertilizer delivered this fiscal year, shared across their fields by area.
   const farmerArea = new Map<string, number>();
   for (const p of parcels) farmerArea.set(p.farmer.id, (farmerArea.get(p.farmer.id) ?? 0) + p.areaM2);
 
-  // Per field: satellite status in every window.
   const statusOf = (p: (typeof parcels)[number]) =>
     windows.map((w) => seasonStatus(p.observations.filter((o) => o.observedOn >= w.from && o.observedOn <= w.to).map((o) => o.ndvi)));
   const perField = parcels.map((p) => ({ p, s: statusOf(p) }));
@@ -124,7 +107,6 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
     const share = (farmerArea.get(p.farmer.id) ?? 0) > 0 ? p.areaM2 / farmerArea.get(p.farmer.id)! : 0;
     const fertilizerKg = Math.round(decl.flatMap((d) => d.inputs).reduce((sum, i) => sum + i.quantityKg, 0) + deliveredKg * share);
     const flags: CheckFlag[] = fieldFlags({ registeredM2: p.areaM2, declaredCultivated, declaredSownM2, fertilizerKg, status: now.status, history: s.slice(0, mainIdx).map((x) => x.status) });
-    // A registered field that is not on farmland at all (forest, river, town) is worth a visit too.
     const offFarmland = p.landCover != null && p.landCover !== "cropland" && (p.croplandShare ?? 0) < 0.5;
     const prod = productivityClass(s.map((x) => x.peakNdvi), muniMedian);
     return {
@@ -153,7 +135,6 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
     };
   });
 
-  // Municipality and season totals.
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   const registeredM2 = sum(fields.map((f) => f.areaM2));
   const satNow = emptyAreas();
@@ -208,9 +189,7 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
       fiscalYearBs: current.fiscalYearBs,
       season: current.season,
       seasonLabel: { ne: current.labelNe, en: current.labelEn },
-      /** The season every comparison on the dashboard is about. */
       mainSeason: { key: main.key, ne: main.labelNe, en: main.labelEn, fiscalYearBs: main.fiscalYearBs, season: main.season },
-      /** The running season, when it is still too young to judge. */
       inProgress: mainIdx < windows.length - 1 ? { key: current.key, ne: current.labelNe, en: current.labelEn } : null,
       choices,
     },
