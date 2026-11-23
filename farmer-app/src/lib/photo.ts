@@ -1,5 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import { apiUpload } from "./api";
+import { reportError } from "./toast";
 
 export type PhotoResult = { ok: true } | { ok: false; reason: "denied" | "cancelled" | "failed" };
 
@@ -16,7 +17,8 @@ export async function takeFieldPhoto(parcelId: string): Promise<PhotoResult> {
   try {
     await apiUpload("/v1/files", form);
     return { ok: true };
-  } catch {
+  } catch (e) {
+    reportError("Photo", e);
     return { ok: false, reason: "failed" };
   }
 }

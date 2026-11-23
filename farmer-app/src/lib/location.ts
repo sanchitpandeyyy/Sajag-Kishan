@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
 import { api } from "./api";
+import { reportError } from "./toast";
 
 export type LocationResult = { ok: true; accuracyM: number | null } | { ok: false; reason: "denied" | "unavailable" | "failed" };
 
@@ -12,10 +13,12 @@ export async function saveFieldLocation(parcelId: string): Promise<LocationResul
     const accuracyM = pos.coords.accuracy != null ? Math.round(pos.coords.accuracy) : null;
     await api(`/v1/parcels/${parcelId}/location`, {
       method: "PATCH",
+      queueOffline: true,
       body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, ...(accuracyM != null ? { accuracyM } : {}) }),
     });
     return { ok: true, accuracyM };
-  } catch {
+  } catch (e) {
+    reportError("Location", e);
     return { ok: false, reason: "failed" };
   }
 }

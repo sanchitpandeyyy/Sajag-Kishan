@@ -34,7 +34,7 @@ export default function SignIn() {
       else fail(`${tr("लगइन हुन सकेन", "Could not sign in")} (${error.status || "?"} ${error.code ?? error.message ?? ""})`);
     } catch (e) {
       const text = `${tr("सर्भरमा पुगेन", "Cannot reach the server")}: ${API_URL}`;
-      console.warn("sign-in network error", e);
+      console.log("sign-in network error", e);
       setError(text);
       showToast(text);
     } finally {

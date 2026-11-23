@@ -26,11 +26,12 @@ export function prefetchTabs(): void {
     warm("/v1/alerts"),
     warm("/v1/subsidies/mine"),
     warm("/v1/subsidies/open"),
+    warm("/v1/crops"), // crop picker works offline too
     fetchShared<Parcel[]>("/v1/parcels")
-      .then((parcels) => {
-        const id = parcels[0]?.id;
-        if (id) return Promise.all([warm(`/v1/calendar?parcelId=${id}`), warm(`/v1/advice?parcelId=${id}`)]);
-      })
+      .then((parcels) =>
+        // Every field's calendar and advice, so each one is available offline.
+        Promise.all(parcels.slice(0, 20).flatMap((p) => [warm(`/v1/calendar?parcelId=${p.id}`), warm(`/v1/advice?parcelId=${p.id}`)])),
+      )
       .catch(() => undefined),
   ]);
 }

@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { useData } from "@/lib/use-data";
 import { theme } from "@/theme";
+import { reportError } from "@/lib/toast";
 
 interface Crop {
   code: string;
@@ -26,11 +27,12 @@ export function CropPicker({ parcelId, visible, onClose, onSaved }: { parcelId: 
     setBusy(true);
     setError(null);
     try {
-      await api("/v1/declarations", { method: "POST", body: JSON.stringify({ parcelId, cropCode: picked }) });
+      await api("/v1/declarations", { method: "POST", body: JSON.stringify({ parcelId, cropCode: picked }), queueOffline: true });
       setPicked(null);
       onSaved();
       onClose();
-    } catch {
+    } catch (e) {
+      reportError("Save crop", e);
       setError(tr("सेभ हुन सकेन। फेरि प्रयास गर्नुहोस्।", "Could not save. Please try again."));
     } finally {
       setBusy(false);

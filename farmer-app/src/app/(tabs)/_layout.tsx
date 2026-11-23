@@ -4,8 +4,8 @@ import { router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { useEffect } from "react";
 import { useLang } from "@/lib/i18n";
+import { onOnlineChange } from "@/lib/network";
 import { prefetchTabs } from "@/lib/use-data";
-import { registerForPush } from "@/lib/push";
 import { theme } from "@/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -15,8 +15,10 @@ export default function TabsLayout() {
   const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
     prefetchTabs();
-    const t = setTimeout(() => void registerForPush(), 3000); // keep push setup off the startup path
-    return () => clearTimeout(t);
+    // Back online: refresh the saved copy of every screen.
+    return onOnlineChange((online) => {
+      if (online) prefetchTabs();
+    });
   }, []);
   useEffect(() => {
     const screen = response?.notification.request.content.data?.screen;

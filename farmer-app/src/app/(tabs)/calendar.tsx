@@ -199,6 +199,7 @@ export default function CalendarTab() {
                   <Ionicons name="leaf-outline" size={16} color={c.inkMuted} />
                   <Text style={styles.eventMeta}>{cropName(e.crop)}</Text>
                 </View>
+                {e.noteNe ? <Text style={styles.eventNote}>{e.noteNe}</Text> : null}
               </View>
               <View style={styles.eventDate}>
                 <Text style={styles.eventDateMain}>{bsDateText(e.startsOn, lang)}</Text>
@@ -256,7 +257,8 @@ const styles = StyleSheet.create({
 
   empty: { alignItems: "center", gap: 8, paddingVertical: 20 },
   emptyText: { fontFamily: theme.font.bodyBold, ...theme.type.body, color: c.inkMuted },
-  event: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 12 },
+  event: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingVertical: 12 },
+  eventNote: { marginTop: 4, fontFamily: theme.font.body, ...theme.type.small, color: c.ink },
   eventDivider: { borderBottomWidth: 1, borderBottomColor: c.line },
   eventIcon: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   eventTitle: { fontFamily: theme.font.bodyBold, ...theme.type.body, color: c.ink },

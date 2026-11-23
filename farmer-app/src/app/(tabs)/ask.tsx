@@ -8,6 +8,7 @@ import { useLang } from "@/lib/i18n";
 import { speakRepliesEnabled } from "@/lib/prefs";
 import { speak, stopSpeaking, useNepaliRecorder } from "@/lib/voice";
 import { theme } from "@/theme";
+import { reportError } from "@/lib/toast";
 
 const c = theme.colors;
 
@@ -64,7 +65,8 @@ export default function Ask() {
       const a = await api<ChatAnswer>("/v1/chat", { method: "POST", body: JSON.stringify({ message: q, history }) });
       setTurns((t) => [...t, { role: "assistant", text: a.answerNe }]);
       if (spoken && (await speakRepliesEnabled())) void speak(a.answerNe, "ne");
-    } catch {
+    } catch (e) {
+      reportError("Chat", e);
       setError(tr("जवाफ आउन सकेन। इन्टरनेट जाँच्नुहोस्।", "Could not get an answer. Check the internet."));
     } finally {
       setBusy(false);
@@ -88,6 +90,7 @@ export default function Ask() {
           setError(tr("आवाज सुनिएन। फेरि बोल्नुहोस्।", "Did not hear anything. Please try again."));
         }
       } catch (e) {
+        reportError("Voice", e);
         setError(`${tr("आवाज बुझ्न सकिएन।", "Could not understand the voice.")} ${e instanceof Error ? e.message : ""}`.trim());
       } finally {
         setTranscribing(false);
@@ -103,6 +106,7 @@ export default function Ask() {
       setSeconds(0);
       setListening(true);
     } catch (e) {
+      reportError("Microphone", e);
       setError(`${tr("माइक खुल्न सकेन।", "Could not start the microphone.")} ${e instanceof Error ? e.message : ""}`.trim());
     }
   }
