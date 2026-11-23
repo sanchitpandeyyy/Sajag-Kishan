@@ -4,13 +4,17 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { BrandSplash } from "@/components/brand-splash";
+import { OfflineBanner } from "@/components/offline-banner";
 import { useSession } from "@/lib/auth-client";
 import { LangProvider } from "@/lib/i18n";
-import { ToastHost } from "@/lib/toast";
+import { installGlobalErrorToasts, ToastHost } from "@/lib/toast";
 import { theme } from "@/theme";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+// Optional error tracking: guarded so a hot reload or missing native hook can never stop the app starting.
+if (typeof installGlobalErrorToasts === "function") installGlobalErrorToasts();
 
 function Routes() {
   const { data: session, isPending } = useSession();
@@ -20,7 +24,9 @@ function Routes() {
     Mukta_400Regular,
     Mukta_600SemiBold,
   });
-  const ready = (fontsLoaded || !!fontError) && !isPending;
+  // A saved session opens the app at once (works offline); otherwise wait for the server check.
+  const ready = (fontsLoaded || !!fontError) && (!isPending || !!session?.user);
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -46,6 +52,8 @@ function Routes() {
           <Stack.Screen name="sign-in" />
         </Stack.Protected>
       </Stack>
+      {signedIn && <OfflineBanner />}
+      {!splashDone && <BrandSplash onDone={() => setSplashDone(true)} />}
       <ToastHost />
     </>
   );
