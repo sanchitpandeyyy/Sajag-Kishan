@@ -10,19 +10,43 @@ import { signOut } from "@/lib/auth-client";
 import { LangToggle, ROLE_LABEL, useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 
-const NAV = [
-  { href: "/dashboard", icon: LayoutDashboard, ne: "ड्यासबोर्ड", en: "Dashboard" },
-  { href: "/assistant", icon: Bot, ne: "डेटा सहायक", en: "Data assistant" },
-  { href: "/map", icon: Map, ne: "कृषि नक्सा", en: "KrishiMap" },
-  { href: "/analytics", icon: Microscope, ne: "उन्नत विश्लेषण", en: "Advanced analytics" },
-  { href: "/farmers", icon: Users, ne: "कृषक र खाता", en: "Farmers & accounts" },
-  { href: "/subsidy", icon: HandCoins, ne: "अनुदान वितरण", en: "Subsidy" },
-  { href: "/alerts", icon: BellRing, ne: "सूचना / चेतावनी", en: "Alerts & advisories" },
-  { href: "/questions", icon: MessageCircleQuestion, ne: "किसानका प्रश्न", en: "Farmers' questions" },
-  { href: "/import", icon: Upload, ne: "दर्ता आयात", en: "Registry import" },
-  { href: "/reports", icon: FileBarChart, ne: "प्रतिवेदन", en: "Reports" },
-  { href: "/officers", icon: ShieldCheck, ne: "कृषि अधिकृतहरू", en: "Officers", adminOnly: true },
-] as const;
+type NavItem = { href: string; icon: LucideIcon; ne: string; en: string; adminOnly?: boolean };
+
+const NAV_GROUPS: { ne: string; en: string; items: NavItem[] }[] = [
+  {
+    ne: "अवलोकन",
+    en: "Overview",
+    items: [
+      { href: "/dashboard", icon: LayoutDashboard, ne: "ड्यासबोर्ड", en: "Dashboard" },
+      { href: "/map", icon: Map, ne: "कृषि नक्सा", en: "KrishiMap" },
+      { href: "/analytics", icon: Microscope, ne: "उन्नत विश्लेषण", en: "Advanced analytics" },
+      { href: "/reports", icon: FileBarChart, ne: "प्रतिवेदन", en: "Reports" },
+    ],
+  },
+  {
+    ne: "किसान सेवा",
+    en: "Farmer services",
+    items: [
+      { href: "/farmers", icon: Users, ne: "कृषक र खाता", en: "Farmers & accounts" },
+      { href: "/subsidy", icon: HandCoins, ne: "अनुदान वितरण", en: "Subsidy" },
+      { href: "/alerts", icon: BellRing, ne: "सूचना / चेतावनी", en: "Alerts & advisories" },
+      { href: "/questions", icon: MessageCircleQuestion, ne: "किसानका प्रश्न", en: "Farmers' questions" },
+    ],
+  },
+  {
+    ne: "व्यवस्थापन",
+    en: "Admin",
+    items: [
+      { href: "/import", icon: Upload, ne: "दर्ता आयात", en: "Registry import" },
+      { href: "/officers", icon: ShieldCheck, ne: "कृषि अधिकृतहरू", en: "Officers", adminOnly: true },
+    ],
+  },
+  {
+    ne: "सहायक",
+    en: "Assistant",
+    items: [{ href: "/assistant", icon: Bot, ne: "डेटा सहायक", en: "Data assistant" }],
+  },
+];
 
 export interface Me {
   phoneNumber: string | null;
@@ -39,7 +63,9 @@ export function Shell({ title, subtitle, action, children }: { title: string; su
   const pathname = usePathname();
   const { tr } = useLang();
   const { data: me } = useMe();
-  const nav = NAV.filter((n) => !("adminOnly" in n) || me?.role === "SUPER_ADMIN");
+  const allowed = (n: NavItem) => !n.adminOnly || me?.role === "SUPER_ADMIN";
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length);
+  const nav = groups.flatMap((g) => g.items);
 
   if (me?.mustChangePassword && typeof window !== "undefined") window.location.href = "/login?change=1";
 
@@ -52,25 +78,32 @@ export function Shell({ title, subtitle, action, children }: { title: string; su
 
   return (
     <div className="flex min-h-dvh bg-page">
-      <aside className="no-print sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-1 bg-brand-800 px-3 py-5 text-white md:flex">
+      <aside className="no-print sticky top-0 hidden h-dvh w-64 shrink-0 flex-col scroll-thin scroll-thin-dark overflow-y-auto overscroll-contain bg-brand-800 px-3 py-5 text-white md:flex">
         <Link href="/dashboard" className="mb-6 px-2">
           <BrandMark onDark size={36} subtitle={tr("कृषि शाखा", "Agriculture office")} />
         </Link>
-        {nav.map(({ href, icon: Icon, ne, en }) => {
-          const active = pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={`flex min-h-11 items-center gap-3 rounded-control px-3 text-[15px] ${active ? "bg-white/15 font-semibold text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`}
-            >
-              <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden />
-              {tr(ne, en)}
-            </Link>
-          );
-        })}
-        <div className="mt-auto flex flex-col gap-4 px-2">
+        <nav className="flex flex-col gap-5">
+          {groups.map((g) => (
+            <div key={g.en} className="flex flex-col gap-0.5">
+              <p className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-white/50 uppercase">{tr(g.ne, g.en)}</p>
+              {g.items.map(({ href, icon: Icon, ne, en }) => {
+                const active = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex min-h-10 shrink-0 items-center gap-3 rounded-control px-3 text-[15px] ${active ? "bg-white/15 font-semibold text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`}
+                  >
+                    <Icon className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
+                    {tr(ne, en)}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+        <div className="mt-auto flex flex-col gap-4 px-2 pt-6">
           <LangToggle tone="dark" />
           <div className="border-t border-white/15 pt-4 text-small">
             <p className="font-semibold">{me?.officer?.fullName ?? ""}</p>
@@ -158,9 +191,18 @@ export function SecondaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElem
   );
 }
 
-export function StateMessage({ loading, error }: { loading?: boolean; error?: string | null }) {
+export function Loader({ className = "" }: { className?: string }) {
   const { tr } = useLang();
-  if (loading) return <p className="text-small text-muted">{tr("लोड हुँदैछ", "Loading")}</p>;
+  return (
+    <div role="status" className={`flex items-center justify-center gap-3 py-6 text-small text-muted ${className}`}>
+      <span className="size-6 animate-spin rounded-full border-[2.5px] border-brand-700/20 border-t-brand-700 motion-reduce:animate-[spin_1.5s_linear_infinite]" aria-hidden />
+      {tr("लोड हुँदैछ", "Loading")}
+    </div>
+  );
+}
+
+export function StateMessage({ loading, error }: { loading?: boolean; error?: string | null }) {
+  if (loading) return <Loader />;
   if (error) return <p className="text-small font-medium text-danger">{error}</p>;
   return null;
 }
