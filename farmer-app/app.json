@@ -42,6 +42,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
@@ -78,7 +79,8 @@
         {
           "microphonePermission": "प्रश्न बोलेर सोध्न माइक चाहिन्छ। Microphone is used to ask questions by voice."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "router": {
