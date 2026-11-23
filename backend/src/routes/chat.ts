@@ -5,7 +5,7 @@ import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { answer, llmConfigured } from "../chat/answer";
 import { farmerContext } from "../chat/context";
 import { audioFromRequest, MAX_AUDIO_BYTES } from "../chat/audio";
-import { geminiConfigured, transcribeNepali } from "../chat/gemini";
+import { aiConfigured, geminiConfigured, transcribeNepali } from "../chat/gemini";
 import { answerOfficer, officerSummary } from "../chat/officer";
 import { getPrisma } from "../db";
 import { wardScope } from "../scope";
@@ -31,7 +31,7 @@ export const chatRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
   .get("/suggestions", (c) =>
     c.json({
-      mode: geminiConfigured() ? "gemini" : llmConfigured() ? "llm" : "local",
+      mode: aiConfigured() ? "gemini" : llmConfigured() ? "llm" : "local",
       suggestions: c.get("user").role !== "FARMER" ? OFFICER_SUGGESTIONS : [
         { ne: "भोलि पानी पर्छ?", en: "Will it rain tomorrow?" },
         { ne: "आज खेतमा के काम गर्ने?", en: "What should I do in the field today?" },

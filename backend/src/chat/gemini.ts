@@ -1,7 +1,15 @@
+import { deepseekConfigured, deepseekGenerate } from "./deepseek";
+
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
+/** Gemini key present. Needed for voice (DeepSeek cannot hear audio). */
 export function geminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
+}
+
+/** Any text model available: DeepSeek (main) or Gemini (fallback). */
+export function aiConfigured(): boolean {
+  return deepseekConfigured() || geminiConfigured();
 }
 
 /**
@@ -60,7 +68,7 @@ async function generateWith(model: string, parts: Part[], opts: GenOpts): Promis
   return text;
 }
 
-async function generate(parts: Part[], opts: GenOpts = {}): Promise<string> {
+async function geminiGenerate(parts: Part[], opts: GenOpts = {}): Promise<string> {
   const now = Date.now();
   const chain = modelChain();
   const ready = chain.filter((m) => (skipUntil.get(m) ?? 0) <= now);
@@ -80,6 +88,24 @@ async function generate(parts: Part[], opts: GenOpts = {}): Promise<string> {
     }
   }
   throw lastError ?? new Error("gemini_no_model");
+}
+
+/**
+ * Text goes to DeepSeek first; if it fails, or the request carries audio, the Gemini model chain answers.
+ * Callers never see which model replied.
+ */
+async function generate(parts: Part[], opts: GenOpts = {}): Promise<string> {
+  const textOnly = parts.every((p): p is { text: string } => "text" in p);
+  if (textOnly && deepseekConfigured()) {
+    try {
+      return await deepseekGenerate(parts.map((p) => p.text).join("\n\n"), opts);
+    } catch (e) {
+      if (!geminiConfigured()) throw e;
+      console.warn(`[ai] DeepSeek failed (${e instanceof Error ? e.message.slice(0, 80) : e}), using Gemini`);
+    }
+  }
+  if (!geminiConfigured()) throw new Error("ai_not_configured");
+  return geminiGenerate(parts, opts);
 }
 
 export function geminiJson(system: string, text: string): Promise<string> {

@@ -6,7 +6,7 @@ import { areaNe, smallUnit, unitSystemAsked } from "./facts";
 import { perLocalUnit, retrieve, type KnowledgeDoc } from "./knowledge";
 import { cropsMentioned, normalize, roughEnglish } from "./lexicon";
 import { FERTILIZER_DOSE_KG_HA } from "../engine";
-import { composeEnglish, geminiConfigured, toEnglish, toNepali } from "./gemini";
+import { aiConfigured, composeEnglish, toEnglish, toNepali } from "./gemini";
 
 export type Intent = "weather" | "task" | "subsidy" | "disease" | "fertilizer" | "sowing" | "plant" | "land" | "greeting" | "general";
 
@@ -207,7 +207,7 @@ const AnswerSchema = z.object({
 });
 
 export function llmConfigured(): boolean {
-  return geminiConfigured() || Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return aiConfigured() || Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
 let client: Anthropic | null = null;
@@ -252,7 +252,7 @@ export async function answer(question: string, history: ChatTurn[], ctx: FarmerC
   const hits = hitsScored.map((h) => h.doc);
   const sources = hits.map((h) => ({ id: h.id, titleNe: h.titleNe, titleEn: h.titleEn }));
 
-  if (geminiConfigured()) {
+  if (aiConfigured()) {
     try {
       const r = await answerWithGemini(question, history, ctx, hits, intent);
       return { ...r, intent, sources, mode: "gemini" };
