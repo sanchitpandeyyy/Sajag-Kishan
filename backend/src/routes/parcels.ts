@@ -1,4 +1,5 @@
-import { getPrisma } from "../db";
+import { getPrisma, type Prisma } from "../db";
+import { asPolygon, distanceToFieldM, fieldCentroid, polygonProblems } from "../geo/field";
 import { cached, MINUTE } from "../lib/cache";
 import { fetchElevation } from "../engine";
 import { geoPointSchema, toSquareMetres } from "../shared";
@@ -30,12 +31,8 @@ const createParcelSchema = z.object({
   polygon: polygonSchema.optional(),
 });
 
-function centroidOf(polygon: z.infer<typeof polygonSchema>) {
-  const ring = polygon.coordinates[0]!.slice(0, -1);
-  const lng = ring.reduce((s, p) => s + p[0], 0) / ring.length;
-  const lat = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-  return { lat, lng };
-}
+/** A GPS fix this close to a mapped field outline is treated as "standing in the field": the outline is kept. */
+const KEEP_OUTLINE_WITHIN_M = 50;
 
 export const parcelRoutes = new Hono<AppEnv>()
   .use("*", requireAuth)
@@ -65,7 +62,13 @@ export const parcelRoutes = new Hono<AppEnv>()
     const farmerId = user.role === "FARMER" ? await farmerIdFor(user) : c.req.query("farmerId");
     if (!farmerId) return c.json({ error: "farmerId_required" }, 400);
 
-    const center = body.polygon ? centroidOf(body.polygon) : body.point;
+    const shape = body.polygon ? asPolygon(body.polygon) : null;
+    if (body.polygon && !shape) return c.json({ error: "invalid_polygon" }, 400);
+    if (shape) {
+      const problems = polygonProblems(shape);
+      if (problems.length) return c.json({ error: "invalid_polygon", problems }, 400);
+    }
+    const center = shape ? fieldCentroid(shape) : body.point;
     const elevationM = center ? await fetchElevation(center.lat, center.lng).catch(() => null) : null;
 
     const parcel = await getPrisma().parcel.create({
@@ -79,7 +82,7 @@ export const parcelRoutes = new Hono<AppEnv>()
         areaOriginal: body.area,
         ownershipType: body.ownershipType,
         irrigation: body.irrigation,
-        geometry: body.polygon ?? (body.point ? { type: "Point", coordinates: [body.point.lng, body.point.lat] } : undefined),
+        geometry: (shape as unknown as Prisma.InputJsonValue) ?? (body.point ? { type: "Point", coordinates: [body.point.lng, body.point.lat] } : undefined),
         centroidLat: center?.lat,
         centroidLng: center?.lng,
         elevationM,
@@ -119,6 +122,15 @@ export const parcelRoutes = new Hono<AppEnv>()
       if (!parcel) return c.json({ error: "not_found" }, 404);
 
       const { lat, lng, accuracyM } = c.req.valid("json");
+      const outline = asPolygon(parcel.geometry);
+      if (outline) {
+        const away = distanceToFieldM(outline, lng, lat);
+        if (away <= KEEP_OUTLINE_WITHIN_M + (accuracyM ?? 0)) {
+          // Farmer is standing in (or right by) the mapped field: keep the officer-drawn outline.
+          await audit(user.id, "parcel.location_confirmed", "Parcel", parcel.id, null, { lat, lng, accuracyM, distanceM: away });
+          return c.json({ ...parcel, locationCheck: { insideMappedField: away === 0, distanceM: away, keptOutline: true } });
+        }
+      }
       const elevationM = await fetchElevation(lat, lng).catch(() => parcel.elevationM);
       const isFarmer = user.role === "FARMER";
       const updated = await prisma.parcel.update({

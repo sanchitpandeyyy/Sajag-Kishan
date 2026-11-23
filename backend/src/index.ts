@@ -3,6 +3,7 @@ import { getPrisma } from "./db";
 import { app } from "./app";
 import { env } from "./env";
 import { refreshWardAlerts } from "./jobs/alerts";
+import { scheduleSatelliteAuto } from "./satellite/auto";
 
 serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, (info) => {
   console.log(`Krishi Dristi API listening on http://localhost:${info.port}`);
@@ -22,4 +23,5 @@ async function alertsTick() {
 if (process.env.DISABLE_JOBS !== "true") {
   setTimeout(alertsTick, 10_000);
   setInterval(alertsTick, THREE_HOURS);
+  if (process.env.DATABASE_URL) scheduleSatelliteAuto();
 }

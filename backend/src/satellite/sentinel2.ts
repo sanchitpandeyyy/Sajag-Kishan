@@ -1,5 +1,6 @@
 import { mean, ndviClass, reflectance, spectralIndices, type Index } from "./indices";
-import { epsgOf, readWindow, signHref, stacSearch, toSceneXY } from "./pc";
+import { insideProjected } from "../geo/field";
+import { epsgOf, readBox, readWindow, sampleGrid, signHref, stacSearch, toSceneXY, type PixelGrid } from "./pc";
 
 const COLLECTION = "sentinel-2-l2a";
 
@@ -22,6 +23,10 @@ export interface S2Reading extends Record<Index, number | null> {
   date: string;
   cloudPct: number;
   scl: number | null;
+  /** "zonal" = averaged over the field outline; "point" = 30 m patch at the centre */
+  method?: "zonal" | "point";
+  pixels?: number;
+  clearPixels?: number;
 }
 export type NdviReading = S2Reading;
 
@@ -57,12 +62,95 @@ export async function searchScenes(
     .filter((s) => s.epsg >= 32601 && s.epsg <= 32760 && s.hrefs.red && s.hrefs.nir && s.hrefs.scl);
 }
 
-export async function indicesAt(scene: Scene, lat: number, lng: number, fetchImpl: typeof fetch = fetch): Promise<S2Reading> {
+export interface ZonalGrids {
+  scl: PixelGrid;
+  red: PixelGrid;
+  nir: PixelGrid;
+  blue: PixelGrid;
+  green: PixelGrid;
+  redEdge: PixelGrid;
+  nir8a: PixelGrid;
+  swir: PixelGrid;
+}
+
+export interface ZonalResult {
+  indices: Record<Index, number | null>;
+  /** 10 m pixels whose centre lies inside the field */
+  pixels: number;
+  /** of those, how many were clear of cloud/shadow */
+  clearPixels: number;
+}
+
+/** Below this share of clear pixels the scene is treated as cloudy over the field. */
+export const MIN_CLEAR_SHARE = 0.5;
+
+/**
+ * Average the spectral indices over every 10 m pixel inside the field, skipping cloud/shadow pixels.
+ * 20 m bands are sampled under each clear 10 m pixel, which area-weights them. Returns null when no
+ * pixel centre falls inside the field (smaller than one pixel), so the caller can fall back to a point read.
+ */
+export function zonalIndices(ring: [number, number][], g: ZonalGrids, baseline: number): ZonalResult | null {
+  const rf = (v: number | null) => (v == null ? null : reflectance(v, baseline));
+  const acc: Record<Index, number[]> = { ndvi: [], ndre: [], ndwi: [], ndmi: [], evi: [], savi: [] };
+  let pixels = 0;
+  let clearPixels = 0;
+  for (let j = 0; j < g.red.height; j++) {
+    for (let i = 0; i < g.red.width; i++) {
+      const x = g.red.originX + (i + 0.5) * g.red.resX;
+      const y = g.red.originY - (j + 0.5) * g.red.resY;
+      if (!insideProjected(ring, x, y)) continue;
+      pixels++;
+      const scl = sampleGrid(g.scl, x, y);
+      if (scl == null || !CLEAR_SCL.has(scl)) continue;
+      clearPixels++;
+      const idx = spectralIndices({
+        red: rf(g.red.values[j * g.red.width + i] ?? null),
+        nir: rf(sampleGrid(g.nir, x, y)),
+        blue: rf(sampleGrid(g.blue, x, y)),
+        green: rf(sampleGrid(g.green, x, y)),
+        redEdge: rf(sampleGrid(g.redEdge, x, y)),
+        nir8a: rf(sampleGrid(g.nir8a, x, y)),
+        swir: rf(sampleGrid(g.swir, x, y)),
+      });
+      for (const k of Object.keys(acc) as Index[]) if (idx[k] != null) acc[k].push(idx[k]!);
+    }
+  }
+  if (pixels === 0) return null;
+  const r3 = (x: number | null) => (x == null ? null : Math.round(x * 1000) / 1000);
+  const cloudy = clearPixels / pixels < MIN_CLEAR_SHARE;
+  const indices = Object.fromEntries((Object.keys(acc) as Index[]).map((k) => [k, cloudy ? null : r3(mean(acc[k]))])) as Record<Index, number | null>;
+  return { indices, pixels, clearPixels };
+}
+
+/** Largest field (bounding box side, m) read pixel by pixel; bigger ones use the point read. */
+const MAX_ZONAL_SIDE_M = 3000;
+
+async function zonalAt(scene: Scene, ringLngLat: [number, number][], fetchImpl: typeof fetch): Promise<ZonalResult | null> {
+  const ring = ringLngLat.map(([lng, lat]) => toSceneXY(scene.epsg, lat, lng) as [number, number]);
+  const xs = ring.map((p) => p[0]);
+  const ys = ring.map((p) => p[1]);
+  const [minX, maxX, minY, maxY] = [Math.min(...xs) - 20, Math.max(...xs) + 20, Math.min(...ys) - 20, Math.max(...ys) + 20];
+  if (maxX - minX > MAX_ZONAL_SIDE_M || maxY - minY > MAX_ZONAL_SIDE_M) return null;
+  const read = async (key: BandKey) => readBox(await signHref(COLLECTION, scene.hrefs[key], fetchImpl), minX, minY, maxX, maxY);
+  const scl = await read("scl");
+  const [red, nir, blue, green, redEdge, nir8a, swir] = await Promise.all([read("red"), read("nir"), read("blue"), read("green"), read("redEdge"), read("nir8a"), read("swir")]);
+  return zonalIndices(ring, { scl, red, nir, blue, green, redEdge, nir8a, swir }, scene.baseline);
+}
+
+/**
+ * Spectral indices for a field in one scene. With the field's outline, averages every pixel inside it;
+ * otherwise (or for fields under one pixel / very large) reads a 30 m patch at the point.
+ */
+export async function indicesAt(scene: Scene, lat: number, lng: number, fetchImpl: typeof fetch = fetch, ringLngLat?: [number, number][] | null): Promise<S2Reading> {
+  if (ringLngLat && ringLngLat.length >= 4 && Object.values(scene.hrefs).every(Boolean)) {
+    const z = await zonalAt(scene, ringLngLat, fetchImpl).catch(() => null);
+    if (z) return { sceneId: scene.id, date: scene.datetime.slice(0, 10), cloudPct: scene.cloudPct, scl: null, ...z.indices, method: "zonal", pixels: z.pixels, clearPixels: z.clearPixels };
+  }
   const [x, y] = toSceneXY(scene.epsg, lat, lng);
   const read = async (key: BandKey, radius: number) => (scene.hrefs[key] ? (await readWindow(await signHref(COLLECTION, scene.hrefs[key], fetchImpl), x, y, radius)).values : []);
 
   const scl = (await read("scl", 0))[0] ?? null;
-  const base = { sceneId: scene.id, date: scene.datetime.slice(0, 10), cloudPct: scene.cloudPct, scl };
+  const base = { sceneId: scene.id, date: scene.datetime.slice(0, 10), cloudPct: scene.cloudPct, scl, method: "point" as const };
   if (scl == null || !CLEAR_SCL.has(scl)) return { ...base, ndvi: null, ndre: null, ndwi: null, ndmi: null, evi: null, savi: null };
 
   const [blue, green, red, nir, redEdge, nir8a, swir] = await Promise.all([read("blue", 1), read("green", 1), read("red", 1), read("nir", 1), read("redEdge", 0), read("nir8a", 0), read("swir", 0)]);
