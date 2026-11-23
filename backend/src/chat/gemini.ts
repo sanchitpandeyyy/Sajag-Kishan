@@ -4,30 +4,82 @@ export function geminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-const model = () => process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+/**
+ * Models tried in order. GEMINI_MODEL goes first; if it fails (retired, overloaded, timed out) the next one is
+ * used silently, so farmers and officers never see the switch. Override the backups with GEMINI_FALLBACK_MODELS (comma separated).
+ */
+// Fastest first (flash-lite answers in ~1-7 s; the larger flash models take 10-20 s).
+const DEFAULT_FALLBACKS = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash"];
+
+function modelChain(): string[] {
+  const backups = process.env.GEMINI_FALLBACK_MODELS?.split(",").map((m) => m.trim()).filter(Boolean) ?? DEFAULT_FALLBACKS;
+  return [...new Set([process.env.GEMINI_MODEL?.trim() || backups[0]!, ...backups])];
+}
+
+/** Models to skip until a time: retired ones (404) for hours, busy ones (429/5xx/timeout) for a minute. */
+const skipUntil = new Map<string, number>();
+const RETIRED_SKIP_MS = 6 * 60 * 60_000;
+const BUSY_SKIP_MS = 60_000;
+
+class GeminiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number | null,
+  ) {
+    super(message);
+  }
+}
 
 type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
+type GenOpts = { system?: string; json?: boolean; temperature?: number };
 
-async function generate(parts: Part[], opts: { system?: string; json?: boolean; temperature?: number } = {}): Promise<string> {
-  const res = await fetch(`${BASE}/${model()}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
-    body: JSON.stringify({
-      ...(opts.system ? { system_instruction: { parts: [{ text: opts.system }] } } : {}),
-      contents: [{ role: "user", parts }],
-      generationConfig: {
-        temperature: opts.temperature ?? 0.2,
-        ...(opts.json ? { responseMimeType: "application/json" } : {}),
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`gemini_http_${res.status}: ${(await res.text()).slice(0, 200)}`);
+async function generateWith(model: string, parts: Part[], opts: GenOpts): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
+      body: JSON.stringify({
+        ...(opts.system ? { system_instruction: { parts: [{ text: opts.system }] } } : {}),
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: opts.temperature ?? 0.2,
+          ...(opts.json ? { responseMimeType: "application/json" } : {}),
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch (e) {
+    throw new GeminiError(`gemini_network: ${e instanceof Error ? e.message : e}`, null);
+  }
+  if (!res.ok) throw new GeminiError(`gemini_http_${res.status}: ${(await res.text()).slice(0, 200)}`, res.status);
   const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
-  if (!text) throw new Error("gemini_empty");
+  if (!text) throw new Error("gemini_empty"); // a real answer of "nothing" (e.g. silent audio): not a reason to switch models
   return text;
+}
+
+async function generate(parts: Part[], opts: GenOpts = {}): Promise<string> {
+  const now = Date.now();
+  const chain = modelChain();
+  const ready = chain.filter((m) => (skipUntil.get(m) ?? 0) <= now);
+  let lastError: unknown = null;
+  for (const model of ready.length ? ready : chain) {
+    try {
+      const text = await generateWith(model, parts, opts);
+      skipUntil.delete(model);
+      return text;
+    } catch (e) {
+      if (!(e instanceof GeminiError)) throw e;
+      // A bad or blocked key fails the same way on every model: stop here.
+      if (e.status === 401 || e.status === 403) throw e;
+      lastError = e;
+      skipUntil.set(model, Date.now() + (e.status === 404 ? RETIRED_SKIP_MS : BUSY_SKIP_MS));
+      console.warn(`[gemini] ${model} failed (${e.status ?? "network"}), trying the next model`);
+    }
+  }
+  throw lastError ?? new Error("gemini_no_model");
 }
 
 export function geminiJson(system: string, text: string): Promise<string> {

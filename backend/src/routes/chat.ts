@@ -44,7 +44,10 @@ export const chatRoutes = new Hono<AppEnv>()
   .post("/transcribe", async (c) => {
     if (!geminiConfigured()) return c.json({ error: "voice_not_configured", messageNe: "आवाज पहिचान अहिले चालू छैन।" }, 503);
     const audio = await audioFromRequest(c.req.raw);
-    if (!audio) return c.json({ error: "audio_required" }, 400);
+    if (!audio) {
+      console.warn(`[chat] transcribe: no audio (content-type=${c.req.header("content-type") ?? "-"}, length=${c.req.header("content-length") ?? "-"})`);
+      return c.json({ error: "audio_required", messageNe: "आवाज रेकर्ड भएन। माइक थिचेर केही सेकेन्ड बोल्नुहोस्।" }, 400);
+    }
     if (audio.bytes.length > MAX_AUDIO_BYTES) return c.json({ error: "audio_too_large" }, 413);
     try {
       const text = await transcribeNepali(audio.bytes, audio.mimeType);
