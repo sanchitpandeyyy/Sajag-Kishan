@@ -1,13 +1,10 @@
-/**
- * weather:refresh + alerts:evaluate (docs/03-technical-implementation.md §6, docs/10 §3-4).
- * Per ward: fetch the forecast, run weather rules, then run disease/pest risk for the crops
- * actually declared in that ward this season (with the ward's alert history). New alerts are
- * stored and pushed to the farmers they concern.
- */
 import { getPrisma, type Prisma } from "../db";
+import { bumpDataVersion } from "../lib/cache";
 import { assessDiseaseRisk, evaluateWeatherAlerts, fetchForecast } from "../engine";
-import { sendPush } from "../push";
+import { notifyWard } from "../notify";
 import { currentFiscalYearBs, currentSeason } from "../scope";
+
+const WARD_CONCURRENCY = Number(process.env.ALERT_WARD_CONCURRENCY ?? 4);
 
 interface AlertLike {
   titleNe: string;
@@ -43,30 +40,41 @@ export async function refreshWardAlerts(wardIds: number[]) {
       },
     });
     created++;
-    pushed += await pushAlertToWard(alert.id, wardId, alert.cropCodes, a);
+    const r = await notifyWard({
+      wardId,
+      cropCodes: alert.cropCodes,
+      title: a.titleNe,
+      body: a.messageNe,
+      priority: a.severity === "SEVERE" ? "high" : "default",
+      data: { alertId: alert.id, screen: "/alerts" },
+      alertId: alert.id,
+    });
+    pushed += r.pushed;
   }
 
-  for (const ward of wards) {
+  async function processWard(ward: (typeof wards)[number]) {
     try {
       const fc = await fetchForecast(ward.centroidLat!, ward.centroidLng!);
       await prisma.weatherSnapshot.create({ data: { wardId: ward.id, daily: fc.daily as unknown as Prisma.InputJsonValue, hourly: fc.hourly as unknown as Prisma.InputJsonValue } });
 
-      // 1. Weather alerts (everyone in the ward).
       for (const a of evaluateWeatherAlerts(fc.daily)) {
         await store(ward.id, { ...a, cropCodes: [], evidence: a.evidence });
       }
 
-      // 2. Disease and pest risk for crops declared in this ward this season.
-      const declared = await prisma.seasonDeclaration.findMany({
-        where: { fiscalYearBs, season, isFallow: false, parcel: { wardId: ward.id } },
-        select: { crop: { select: { code: true } } },
-        distinct: ["cropId"],
-      });
+      const [declared, past] = await Promise.all([
+        prisma.seasonDeclaration.findMany({
+          where: { fiscalYearBs, season, isFallow: false, parcel: { wardId: ward.id } },
+          select: { crop: { select: { code: true } } },
+          distinct: ["cropId"],
+        }),
+        prisma.alert.groupBy({ by: ["type"], where: { wardId: ward.id, validFrom: { lt: new Date() } }, _count: { _all: true } }),
+      ]);
+      const pastCount = new Map(past.map((p) => [p.type, p._count._all]));
       for (const { crop } of declared) {
-        const past = await prisma.alert.groupBy({ by: ["type"], where: { wardId: ward.id, validFrom: { lt: new Date() } }, _count: { _all: true } });
-        const pastCount = new Map(past.map((p) => [p.type, p._count._all]));
-        for (const r of assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily })) {
-          const withHistory = assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily, pastAlertsInWard: pastCount.get(r.code) ?? 0 }).find((x) => x.code === r.code) ?? r;
+        const base = assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily });
+        for (const r of base) {
+          const history = pastCount.get(r.code) ?? 0;
+          const withHistory = history ? (assessDiseaseRisk({ crop: crop.code, hourly: fc.hourly, daily: fc.daily, pastAlertsInWard: history }).find((x) => x.code === r.code) ?? r) : r;
           if (withHistory.level === "LOW") continue;
           await store(ward.id, {
             type: withHistory.code,
@@ -75,7 +83,7 @@ export async function refreshWardAlerts(wardIds: number[]) {
             titleNe: `${withHistory.name.ne}को जोखिम`,
             messageNe: `${withHistory.why.ne} ${withHistory.prevent[0]?.ne ?? ""}`.trim(),
             cropCodes: [crop.code],
-            evidence: { score: withHistory.score, level: withHistory.level, days: withHistory.days, pastAlertsInWard: pastCount.get(r.code) ?? 0 },
+            evidence: { score: withHistory.score, level: withHistory.level, days: withHistory.days, pastAlertsInWard: history },
             ruleVersion: withHistory.ruleVersion,
           });
         }
@@ -84,26 +92,12 @@ export async function refreshWardAlerts(wardIds: number[]) {
       failures.push({ wardId: ward.id, error: e instanceof Error ? e.message : String(e) });
     }
   }
-  return { wards: wards.length, created, pushed, failures };
-}
 
-/** Push only to farmers in the ward, and for crop-specific alerts only to growers of that crop. */
-async function pushAlertToWard(alertId: string, wardId: number, cropCodes: string[], a: AlertLike): Promise<number> {
-  const prisma = getPrisma();
-  const farmers = await prisma.farmer.findMany({
-    where: {
-      parcels: { some: { wardId, ...(cropCodes.length ? { declarations: { some: { crop: { code: { in: cropCodes } } } } } : {}) } },
-    },
-    select: { userId: true, user: { select: { pushTokens: { select: { token: true } } } } },
+  const queue = [...wards];
+  const workers = Array.from({ length: Math.min(WARD_CONCURRENCY, queue.length) }, async () => {
+    for (let w = queue.shift(); w; w = queue.shift()) await processWard(w);
   });
-  const messages = farmers.flatMap((f) =>
-    f.user.pushTokens.map((t) => ({ to: t.token, title: a.titleNe, body: a.messageNe, data: { alertId, screen: "/alerts" }, priority: a.severity === "SEVERE" ? ("high" as const) : ("default" as const) })),
-  );
-  if (!messages.length) return 0;
-  const ok = await sendPush(messages);
-  await prisma.alertDelivery.createMany({
-    data: farmers.map((f) => ({ alertId, userId: f.userId, channel: "push", sentAt: ok ? new Date() : null, error: ok ? null : "push_failed" })),
-    skipDuplicates: true,
-  });
-  return ok ? messages.length : 0;
+  await Promise.all(workers);
+  if (created > 0) bumpDataVersion();
+  return { wards: wards.length, created, pushed, failures };
 }

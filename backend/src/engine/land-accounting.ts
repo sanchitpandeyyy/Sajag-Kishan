@@ -1,15 +1,10 @@
-/** Land accounting for KrishiMap (docs/05-engine-algorithms.md §6). */
-
 export interface ParcelFact {
   id: string;
   wardId: number;
   areaM2: number;
   verified: boolean;
-  /** Crop codes declared this season (empty = no declaration). */
   declaredCrops: { crop: string; sownAreaM2: number; isFallow?: boolean }[];
-  /** Fertilizer recorded (declared input or delivered subsidy). */
   fertilized: boolean;
-  /** Satellite says green-up observed (null = no observation). */
   satelliteGreen?: boolean | null;
 }
 
@@ -21,7 +16,6 @@ export interface LandSummary {
   noDataM2: number;
   fertilizedM2: number;
   verifiedM2: number;
-  /** Declared cultivated but satellite saw no green-up → needs field check. */
   conflictParcels: string[];
   byCrop: { crop: string; areaM2: number; parcels: number }[];
 }
@@ -47,7 +41,6 @@ export function summarizeLand(parcels: ParcelFact[]): LandSummary {
 
     const cropped = p.declaredCrops.filter((d) => !d.isFallow);
     if (cropped.length) {
-      // Cap at the parcel area: two crops on one parcel (intercropping) still count once.
       s.cultivatedM2 += Math.min(p.areaM2, Math.max(...cropped.map((d) => d.sownAreaM2)));
       for (const d of cropped) {
         const cur = byCrop.get(d.crop) ?? { areaM2: 0, parcels: 0 };
@@ -67,7 +60,6 @@ export function summarizeLand(parcels: ParcelFact[]): LandSummary {
   return s;
 }
 
-/** Production estimate: Σ area × base yield × season factor (§7). */
 export function estimateProductionKg(areaM2: number, baseYieldKgHa: number, ndviAnomaly = 0, k = 0.8): number {
   const factor = Math.min(1.2, Math.max(0.6, 1 + k * ndviAnomaly));
   return Math.round((areaM2 / 10_000) * baseYieldKgHa * factor);

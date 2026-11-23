@@ -1,8 +1,8 @@
-# Sajag Kishan
+# Krishi Dristi
 
 **Team:** CSITABMC
 
-**Sajag Kishan** ("alert farmer") is an app that tells Nepali farmers what to grow and when, and tells agriculture officers where crops, land and fertilizer need attention.
+**Krishi Dristi** ("agricultural vision") is an app that tells Nepali farmers what to grow and when, and tells agriculture officers where crops, land and fertilizer need attention.
 
 ## For Farmers
 

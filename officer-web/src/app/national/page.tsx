@@ -27,12 +27,10 @@ import { MAP_VIEWBOX, PROVINCE_SHAPES } from "@/lib/nepal-map";
 export default function NationalData() {
   const { tr, num } = useLang();
 
-
-  const topProvinceRow = PROVINCE_DETAIL.reduce((a, b) => (b.kpi.households > a.kpi.households ? b : a));
+const topProvinceRow = PROVINCE_DETAIL.reduce((a, b) => (b.kpi.households > a.kpi.households ? b : a));
   const topProvince = { ne: topProvinceRow.ne, en: topProvinceRow.en, households: topProvinceRow.kpi.households };
   const verifiedOf = (p: (typeof PROVINCE_DETAIL)[number]) => Math.round((p.kpi.verified / p.kpi.households) * 100);
 
-  // One map area per province. Clicking opens that province with its districts.
   const provinceAreas: Area[] = PROVINCE_DETAIL.map((p) => ({
     id: p.en,
     ne: p.ne,
@@ -63,8 +61,8 @@ export default function NationalData() {
     >
       <p className="mb-6 max-w-[760px] text-body">
         {tr(
-          "यो पृष्ठमा किसान सूचीकरण प्रणालीको सार्वजनिक ड्यासबोर्डबाट लिइएको राष्ट्रिय तथ्याङ्क छ। सजग किसानले यही आधार तथ्याङ्कमा उपग्रह र मौसम विश्लेषण थपेर खेत तहको तस्बिर बनाउँछ।",
-          "This page holds the national figures from the public dashboard of the Farmer Registry. Sajag Kishan builds on this base and adds satellite and weather analysis to reach field level.",
+          "यो पृष्ठमा किसान सूचीकरण प्रणालीको सार्वजनिक ड्यासबोर्डबाट लिइएको राष्ट्रिय तथ्याङ्क छ। कृषि दृष्टिले यही आधार तथ्याङ्कमा उपग्रह र मौसम विश्लेषण थपेर खेत तहको तस्बिर बनाउँछ।",
+          "This page holds the national figures from the public dashboard of the Farmer Registry. Krishi Dristi builds on this base and adds satellite and weather analysis to reach field level.",
         )}
       </p>
 
@@ -150,7 +148,7 @@ export default function NationalData() {
       </section>
 
       <section className="mt-6">
-        <Card icon={Lightbulb} title={tr("सजग किसानका लागि के देखिन्छ", "What this means for Sajag Kishan")}>
+        <Card icon={Lightbulb} title={tr("कृषि दृष्टिका लागि के देखिन्छ", "What this means for Krishi Dristi")}>
           <ul className="grid gap-4 md:grid-cols-3">
             <li>
               <p className="font-semibold text-ink">{tr("प्रमाणीकरणको खाडल", "Verification gap")}</p>

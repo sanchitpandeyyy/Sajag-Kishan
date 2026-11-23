@@ -1,4 +1,3 @@
-/** Save a field's location from the phone's GPS (stand in the field, tap once). */
 import * as Location from "expo-location";
 import { api } from "./api";
 

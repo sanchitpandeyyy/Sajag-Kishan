@@ -1,24 +1,13 @@
-/**
- * Files in Neon Object Storage.
- *
- * POST /v1/files            multipart: file, entity ("parcel"), entityId → stores the object,
- *                           records a FileObject row, returns a presigned download URL.
- * GET  /v1/files?entity=&entityId=  list files for something you can see.
- * GET  /v1/files/:id/url    fresh presigned URL (15 min).
- *
- * Access: farmers only for their own parcels; officers for parcels in their local level.
- */
 import { Hono } from "hono";
 import { audit } from "../audit";
 import { OFFICER_ROLES, requireAuth } from "../auth";
 import { getPrisma } from "../db";
-import { ALLOWED_CONTENT_TYPES, ASSETS_BUCKET, MAX_UPLOAD_BYTES, objectKey, presignedUrl, putObject, storageConfigured } from "../lib/storage";
+import { ALLOWED_CONTENT_TYPES, ASSETS_BUCKET, deleteObject, MAX_UPLOAD_BYTES, objectKey, presignedUrl, putObject, storageConfigured } from "../lib/storage";
 import { farmerIdFor, wardScope } from "../scope";
 import type { AppEnv, AuthUser } from "../types";
 
 const ENTITIES = new Set(["parcel"]);
 
-/** May this user attach/read files on this entity? */
 async function canAccess(user: AuthUser, entity: string, entityId: string): Promise<boolean> {
   if (entity !== "parcel") return OFFICER_ROLES.includes(user.role);
   const prisma = getPrisma();
@@ -67,4 +56,15 @@ export const fileRoutes = new Hono<AppEnv>()
     const row = await getPrisma().fileObject.findUnique({ where: { id: c.req.param("id") } });
     if (!row || !(await canAccess(user, row.entity, row.entityId))) return c.json({ error: "not_found" }, 404);
     return c.json({ url: await presignedUrl(row.key), expiresIn: 900 });
+  })
+  .delete("/:id", async (c) => {
+    const user = c.get("user");
+    const prisma = getPrisma();
+    const row = await prisma.fileObject.findUnique({ where: { id: c.req.param("id") } });
+    if (!row || !(await canAccess(user, row.entity, row.entityId))) return c.json({ error: "not_found" }, 404);
+    if (row.uploadedById !== user.id && !OFFICER_ROLES.includes(user.role)) return c.json({ error: "forbidden" }, 403);
+    await deleteObject(row.key).catch(() => undefined);
+    await prisma.fileObject.delete({ where: { id: row.id } });
+    await audit(user.id, "file.delete", "FileObject", row.id, { entity: row.entity, entityId: row.entityId, key: row.key }, null);
+    return c.json({ ok: true });
   });

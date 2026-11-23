@@ -3,7 +3,6 @@ import { ndviClass, normalizedDifference, reflectance, slopeAspect, spectralIndi
 
 describe("spectral indices", () => {
   it("computes NDVI for a green crop by hand", () => {
-    // NIR 0.40, red 0.05: (0.40 - 0.05) / 0.45 = 0.778
     expect(normalizedDifference(0.4, 0.05)).toBe(0.778);
   });
 
@@ -20,11 +19,21 @@ describe("spectral indices", () => {
   });
 
   it("computes all four indices for flooded paddy at transplanting", () => {
-    // Water over the field: green above NIR, so NDWI > 0 and NDVI low.
     const i = spectralIndices({ green: 0.08, red: 0.06, redEdge: 0.07, nir: 0.05, nir8a: 0.05, swir: 0.02 });
     expect(i.ndwi).toBeGreaterThan(0);
     expect(i.ndvi).toBeLessThan(0);
     expect(i.ndmi).toBe(0.429);
+  });
+
+  it("computes EVI and SAVI for a green crop by hand", () => {
+    const i = spectralIndices({ blue: 0.03, red: 0.05, nir: 0.4 });
+    expect(i.evi).toBe(0.593);
+    expect(i.savi).toBe(0.553);
+  });
+
+  it("drops EVI without a blue band or outside -1..1", () => {
+    expect(spectralIndices({ red: 0.05, nir: 0.4 }).evi).toBeNull();
+    expect(spectralIndices({ blue: 0.3, red: 0.02, nir: 0.1 }).evi).toBeNull();
   });
 
   it("places NDVI on the 0 to 0.9+ scale", () => {
@@ -46,7 +55,6 @@ describe("radar and terrain", () => {
   });
 
   it("finds a north-facing slope", () => {
-    // Ground rises 10 m per 30 m cell towards the south: slope atan(1/3) = 18.4 deg, faces north.
     const z = [100, 100, 100, 110, 110, 110, 120, 120, 120];
     expect(slopeAspect(z, 30, 30)).toEqual({ slopeDeg: 18.4, aspectDeg: 0 });
   });

@@ -1,15 +1,3 @@
-/**
- * Sentinel-1 radar (C-band SAR) backscatter for a point, from the radiometrically terrain corrected
- * collection on Microsoft Planetary Computer (`sentinel-1-rtc`, 10 m, free, no account).
- *
- * Radar sees through cloud, so it keeps working in the monsoon when Sentinel-2 is blind for weeks.
- *   VV (dB): mostly the soil. Wetter soil reflects more, so VV rises after rain or irrigation.
- *   VH (dB): mostly the plants (volume scattering). It rises as a crop grows.
- *   Flooded paddy at transplanting is very dark (VH about -22 dB or lower), then VH climbs to about
- *   -14 dB at full canopy. A fallow field stays flat all season.
- *
- * Indicators only (AGENT.md rule 6): thresholds are first estimates to be calibrated with officer checks.
- */
 import { mean, toDb } from "./indices";
 import { epsgOf, readWindow, signHref, stacSearch, toSceneXY } from "./pc";
 
@@ -53,7 +41,6 @@ export async function searchRadarScenes(lat: number, lng: number, opts: { from: 
     .filter((s) => s.epsg >= 32601 && s.epsg <= 32760 && s.hrefs.vv && s.hrefs.vh);
 }
 
-/** Mean backscatter of the 3x3 pixels around the point (averaged in linear power, reported in dB). */
 export async function backscatterAt(scene: RadarScene, lat: number, lng: number, fetchImpl: typeof fetch = fetch): Promise<RadarReading> {
   const [x, y] = toSceneXY(scene.epsg, lat, lng);
   const [vv, vh] = await Promise.all(
@@ -64,19 +51,14 @@ export async function backscatterAt(scene: RadarScene, lat: number, lng: number,
 
 export interface RadarVerdict {
   validCount: number;
-  /** Rise of VH across the window (max minus min, dB). A growing crop gives several dB. */
   vhRangeDb: number | null;
   latestVhDb: number | null;
   latestVvDb: number | null;
-  /** Relative soil wetness 0 (driest seen) to 1 (wettest seen), from this field's own VV history. */
   moistureIndex: number | null;
-  /** True when VH swings enough to show a crop cycle; null when there are too few readings. */
   cropCycleSeen: boolean | null;
-  /** Very dark VH plus a later rise: the flooded-then-growing signature of transplanted paddy. */
   paddySignature: boolean | null;
 }
 
-/** Thresholds (first estimates, ruleVersion radar-v1). */
 export const RADAR_RULES = { minReadings: 4, cropRangeDb: 3, floodedVhDb: -21, rule: "radar-v1" } as const;
 
 export function radarVerdict(readings: { date: string; vvDb: number | null; vhDb: number | null }[]): RadarVerdict {

@@ -1,4 +1,3 @@
-/** Settings: alarms, voice, language, account. One screen, big switches, plain words. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
 import { router } from "expo-router";

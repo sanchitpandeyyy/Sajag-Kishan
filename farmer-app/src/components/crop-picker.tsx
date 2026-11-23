@@ -1,4 +1,3 @@
-/** Full-screen crop picker: one big button per crop. Tap a crop, tap save. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";

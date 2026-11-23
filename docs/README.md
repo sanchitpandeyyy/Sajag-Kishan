@@ -1,6 +1,6 @@
 # Docs
 
-Documentation for **Sajag Kishan** (Team CSITABMC).
+Documentation for **Krishi Dristi** (Team CSITABMC).
 
 ## Contents
 

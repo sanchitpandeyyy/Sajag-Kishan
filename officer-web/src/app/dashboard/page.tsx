@@ -1,16 +1,9 @@
 "use client";
 
-/**
- * Municipal agriculture dashboard (works for any municipality in Nepal; an officer sees their own,
- * the super admin can switch). Step 1: farmers and land transparency.
- *
- * It answers, from registry + declarations + Sentinel-2 history:
- *   how much registered land is actually cultivated, fallow or fertilized, season by season and ward by
- *   ward, and which fields need a visit (subsidy on fallow land, crops declared but not seen...).
- */
 import { ArrowRight, ChartColumnStacked, ClipboardCheck, FlaskConical, Gauge, LandPlot, MapPinned, SatelliteDish, ScanSearch, Sprout, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AiSummary } from "@/components/ai-summary";
 import { AreaImage } from "@/components/area-image";
 import { CompareBars, ha, SeasonColumns, STATUS, StatusBar, StatusLegend, type FieldStatus } from "@/components/land-charts";
 import { ParcelMap, type ParcelFeature } from "@/components/parcel-map";
@@ -70,6 +63,7 @@ export default function DashboardPage() {
       }
     >
       <StateMessage loading={loading && !data} error={error} />
+      <AiSummary />
 
       {data && land && s && (
         <>
@@ -83,7 +77,6 @@ export default function DashboardPage() {
             </p>
           )}
 
-          {/* Headline numbers */}
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <StatTile icon={Users} tone="blue" label={tr("दर्ता कृषक", "Registered farmers")} value={num(data.farmers.total)} note={tr(`${num(data.farmers.withAccount)} जनाको एप खाता`, `${data.farmers.withAccount} with an app account`)} />
             <StatTile icon={LandPlot} tone="brown" label={tr("दर्ता जग्गा", "Registered land")} value={`${num(ha(land.registeredM2), 2)} ${tr("हे.", "ha")}`} note={tr(`${num(data.farmers.fields)} खेत, ${num(data.farmers.mappedFields)} नक्सामा`, `${data.farmers.fields} fields, ${data.farmers.mappedFields} mapped`)} />
@@ -93,7 +86,6 @@ export default function DashboardPage() {
             <StatTile icon={ScanSearch} tone="blue" label={tr("जाँच गर्नुपर्ने खेत", "Fields to check")} value={num(data.checks.length)} note={tr("तल सूची हेर्नुहोस्", "See the list below")} />
           </section>
 
-          {/* Claim vs satellite */}
           <section className="mt-6 grid gap-4 lg:grid-cols-2">
             <Card icon={ClipboardCheck} title={tr("घोषणा र भू-उपग्रहको तुलना", "Declared vs satellite")}>
               <CompareBars
@@ -125,7 +117,6 @@ export default function DashboardPage() {
             </Card>
           </section>
 
-          {/* Seasons */}
           <section className="mt-6">
             <Card icon={ChartColumnStacked} title={tr("मौसम अनुसार भू-उपग्रहको हेराइ", "Season by season on the satellite")}>
               <SeasonColumns seasons={data.seasons.map((x) => ({ key: x.key, label: tr(x.labelNe, x.labelEn), satellite: x.satellite, declared: x.hasDeclarations ? x.declaredCultivatedM2 : null, inProgress: x.inProgress }))} />
@@ -133,7 +124,6 @@ export default function DashboardPage() {
             </Card>
           </section>
 
-          {/* Maps */}
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
             <Card icon={MapPinned} title={tr("खेतहरू नक्सामा", "Fields on the map")}>
               <ParcelMap features={features} colorBy="status" selectedId={selected} onSelect={setSelected} />
@@ -145,7 +135,6 @@ export default function DashboardPage() {
             </Card>
           </section>
 
-          {/* Wards */}
           <section className="mt-6">
             <Card icon={ChartColumnStacked} title={tr("वडा अनुसार", "Ward by ward")}>
               <ul className="space-y-4">
@@ -177,7 +166,6 @@ export default function DashboardPage() {
             </Card>
           </section>
 
-          {/* Fields to check */}
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
             <Card icon={ScanSearch} title={tr("जाँच गर्नुपर्ने खेत", "Fields to check")}>
               {data.checks.length === 0 && <p className="text-small text-muted">{tr("अहिले कुनै खेतमा शंका छैन।", "Nothing looks wrong right now.")}</p>}

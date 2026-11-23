@@ -1,22 +1,12 @@
-/**
- * Picture links for Sentinel-2 scenes, rendered on the fly by the Microsoft Planetary Computer data API
- * (free, no key): a true-colour photo and an NDVI map of any box, as JPEG (about 5x smaller than PNG). Nothing is stored; the officer's
- * browser loads the PNG straight from Planetary Computer.
- *
- * NDVI colours: red (bare, 0) to yellow to green (dense crop, 0.9). Since processing baseline 04.00
- * (25 Jan 2022) each band carries a +1000 offset, which the expression removes.
- */
-
 const DATA_API = "https://planetarycomputer.microsoft.com/api/data/v1/item/bbox";
 const BASELINE_04 = Date.UTC(2022, 0, 25);
 
-export type BBox = [number, number, number, number]; // minLng, minLat, maxLng, maxLat
+export type BBox = [number, number, number, number];
 
 export function boxAround(lat: number, lng: number, halfDeg: number): BBox {
   return [lng - halfDeg, lat - halfDeg, lng + halfDeg, lat + halfDeg].map((v) => Math.round(v * 1e5) / 1e5) as BBox;
 }
 
-/** Box around a set of points with a margin, at least `minHalfDeg` each way. */
 export function boxAroundPoints(points: { lat: number; lng: number }[], marginDeg = 0.01, minHalfDeg = 0.01): BBox | null {
   if (!points.length) return null;
   const lats = points.map((p) => p.lat);

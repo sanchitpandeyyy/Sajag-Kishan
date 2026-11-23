@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* Sajag Kishan design tokens. Layout, type scale, radii and shadows follow the CEE Mentor system;
-   colours come from the Sajag Kishan logo. Pure white surfaces and cool neutral grays only. */
+/* Krishi Dristi design tokens. Layout, type scale, radii and shadows follow the CEE Mentor system;
+   colours come from the Krishi Dristi logo. Pure white surfaces and cool neutral grays only. */
 @theme {
   /* neutrals */
   --color-ink: #12151c; /* headings */

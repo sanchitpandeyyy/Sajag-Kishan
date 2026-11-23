@@ -12,8 +12,8 @@ const mukta = Mukta({
 });
 
 export const metadata: Metadata = {
-  title: { default: "सजग किसान | Sajag Kishan", template: "%s | सजग किसान" },
-  description: "Sajag Kishan: land, crop, subsidy and crop-calendar intelligence for Nepal's farmers and agriculture offices.",
+  title: { default: "कृषि दृष्टि | Krishi Dristi", template: "%s | कृषि दृष्टि" },
+  description: "Krishi Dristi: land, crop, subsidy and crop-calendar intelligence for Nepal's farmers and agriculture offices.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

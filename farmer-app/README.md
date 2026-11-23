@@ -1,6 +1,6 @@
 # Farmer App
 
-Mobile application of **Sajag Kishan** (Team CSITABMC), built for farmers.
+Mobile application of **Krishi Dristi** (Team CSITABMC), built for farmers.
 
 ## Purpose
 

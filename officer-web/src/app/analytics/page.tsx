@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * Advanced analytics: the real satellite pictures behind the dashboard numbers.
- *   1. The whole municipality, or one ward, from space (true colour or NDVI, any recent season),
- *      with every registered field drawn on it in its satellite status colour.
- *   2. Any single field: picture timeline, season-by-season status, what was flagged and why.
- */
 import { Filter, Microscope, SatelliteDish, ScanSearch } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";

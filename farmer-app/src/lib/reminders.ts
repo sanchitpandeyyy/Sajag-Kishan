@@ -1,10 +1,4 @@
 import { ensureChannel } from "./channel";
-/**
- * Alarm-style reminders on the phone (local notifications, no internet needed once scheduled).
- * - Each upcoming calendar task rings at 07:00 on the day it starts.
- * - A new danger alert (severe weather or disease) rings once, straight away.
- * Android channel "reminders": maximum importance, sound, long vibration, shown on the lock screen.
- */
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -37,7 +31,6 @@ export async function setRemindersEnabled(on: boolean): Promise<void> {
   if (!on) await cancelTaskReminders();
 }
 
-/** Create the alarm channel and ask permission. Returns false if the farmer said no. */
 export async function prepareReminders(): Promise<boolean> {
   await ensureChannel(CHANNEL, "Reminders / सम्झना", [0, 600, 300, 600, 300, 600]);
   const current = await Notifications.getPermissionsAsync();
@@ -51,7 +44,6 @@ async function cancelTaskReminders() {
   await Promise.all(all.filter((n) => n.identifier.startsWith(TASK_PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
 }
 
-/** Replace the scheduled task alarms with the next tasks from the calendar. Returns how many were set. */
 export async function scheduleTaskReminders(events: CalendarEvent[], lang: Lang): Promise<number> {
   if (!(await remindersEnabled())) return 0;
   await cancelTaskReminders();
@@ -66,7 +58,7 @@ export async function scheduleTaskReminders(events: CalendarEvent[], lang: Lang)
       identifier: `${TASK_PREFIX}${e.crop}:${e.task}:${e.startsOn.slice(0, 10)}`,
       content: {
         title: lang === "ne" ? `आज: ${e.titleNe}` : `Today: ${TASK_EN[e.task] ?? e.titleNe}`,
-        body: lang === "ne" ? "कृषि दृष्टि पात्रो" : "Krishi Drishti calendar",
+        body: lang === "ne" ? "कृषि दृष्टि पात्रो" : "Krishi Dristi calendar",
         sound: "default",
         priority: Notifications.AndroidNotificationPriority.MAX,
         data: { screen: "/calendar" },
@@ -77,7 +69,6 @@ export async function scheduleTaskReminders(events: CalendarEvent[], lang: Lang)
   return upcoming.length;
 }
 
-/** Ring once for each new danger alert. */
 export async function notifyNewDangerAlerts(alerts: Alert[], lang: Lang): Promise<void> {
   if (!(await remindersEnabled())) return;
   const danger = alerts.filter((a) => a.severity === "SEVERE" || a.type === "LATE_BLIGHT" || a.type === "RICE_BLAST");

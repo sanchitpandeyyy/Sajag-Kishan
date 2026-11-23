@@ -1,14 +1,3 @@
-/**
- * Answer a farmer's question in simple Nepali.
- *
- * Pipeline (docs/10 §9):
- *   1. Nepali question -> English (glossary offline, or the LLM when a key is set)
- *   2. Retrieve passages from the knowledge base (BM25, offline)
- *   3. Add the farmer's own facts (fields, crops, next jobs, forecast, alerts, risk, subsidy)
- *   4. Compose the answer in Nepali:
- *        - "llm" mode: Claude writes it, grounded only in steps 2-3
- *        - "local" mode: templates fill it from steps 2-3 (no key needed, works offline)
- */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
@@ -37,6 +26,14 @@ export interface ChatAnswer {
 
 const DIGITS = "०१२३४५६७८९";
 const ne = (n: number | string) => String(n).replace(/[0-9]/g, (d) => DIGITS[Number(d)]!);
+
+/** True when the text is mostly Devanagari letters, so an English reply never reaches the Nepali bubble. */
+export function isNepali(text: string): boolean {
+  const letters = text.match(/\p{L}/gu) ?? [];
+  if (!letters.length) return false;
+  const devanagari = letters.filter((ch) => /[ऀ-ॿ]/.test(ch)).length;
+  return devanagari / letters.length >= 0.6;
+}
 
 function has(text: string, words: string[]) {
   return words.some((w) => text.includes(w));
@@ -153,7 +150,6 @@ function firstSentences(text: string, n: number) {
   return parts.slice(0, n).join(" ");
 }
 
-/** Template answer from retrieved passages + the farmer's facts. No network, no key. */
 export function answerLocal(question: string, ctx: FarmerChatContext | null, hits: KnowledgeDoc[], intent: Intent): string {
   const crops = cropsMentioned(question);
   const top = hits[0];
@@ -175,7 +171,6 @@ export function answerLocal(question: string, ctx: FarmerChatContext | null, hit
       return [subsidyNe(ctx), passage].filter(Boolean).join(" ");
     case "fertilizer": {
       const mine = fertilizerNe(ctx, crops);
-      // With the farmer's own total, only the "how to split it" sentence is needed from the passage.
       const how = top?.textNe.split(/(?<=[।.])\s+/).find((s) => s.includes("टप ड्रेस")) ?? "";
       return mine ? `${mine} ${how}${alertHint(ctx)}` : passage;
     }
@@ -188,9 +183,7 @@ export function answerLocal(question: string, ctx: FarmerChatContext | null, hit
   }
 }
 
-// ---- LLM mode (optional) ----
-
-const SYSTEM = `You are "Sajag Kishan Sahayak", a farming helper inside a mobile app for smallholder farmers in Nepal.
+const SYSTEM = `You are "Krishi Dristi Sahayak", a farming helper inside a mobile app for smallholder farmers in Nepal.
 The farmer writes or speaks in Nepali (sometimes romanised Nepali or English).
 
 How to answer:
@@ -237,16 +230,18 @@ async function answerWithClaude(question: string, history: ChatTurn[], ctx: Farm
     ],
   });
   if (res.stop_reason === "refusal" || !res.parsed_output) throw new Error(`llm_no_answer:${res.stop_reason}`);
+  if (!isNepali(res.parsed_output.answerNe)) throw new Error("answer_not_nepali");
   return res.parsed_output;
 }
 
-/** Gemini pipeline: Nepali -> English -> grounded English answer -> Nepali. */
 async function answerWithGemini(question: string, history: ChatTurn[], ctx: FarmerChatContext | null, hits: KnowledgeDoc[], intent: Intent) {
   const understoodEn = await toEnglish(question);
   const facts = ctx ? compactJson(factsFor(intent, ctx)) : "Not a farmer account: no farm facts.";
   const knowledge = hits.map((h) => `[${h.id}] ${h.titleEn}\n${h.textEn}`).join("\n\n") || "No passage matched.";
   const answerEn = await composeEnglish({ questionEn: understoodEn, history, facts, knowledge });
-  const answerNe = await toNepali(answerEn);
+  let answerNe = await toNepali(answerEn);
+  if (!isNepali(answerNe)) answerNe = await toNepali(answerEn); // one retry if the translation came back in English
+  if (!isNepali(answerNe)) throw new Error("answer_not_nepali");
   return { understoodEn, answerEn, answerNe };
 }
 

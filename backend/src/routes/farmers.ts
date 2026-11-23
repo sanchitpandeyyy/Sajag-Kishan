@@ -5,50 +5,52 @@ import { audit } from "../audit";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { getPrisma } from "../db";
 import { setAccountDisabled, setPassword, temporaryPassword } from "../lib/accounts";
+import { cached, MINUTE } from "../lib/cache";
 import { maskCitizenship, wardScope } from "../scope";
-import type { AppEnv } from "../types";
+import type { AppEnv, AuthUser } from "../types";
 
 const accessSchema = z.object({ disabled: z.boolean(), reason: z.string().trim().max(200).optional() });
 
-/** Officer: farmers in their local level (super admin: all). Citizenship is masked. */
+async function listFarmers(user: AuthUser, q: string | undefined) {
+  const farmers = await getPrisma().farmer.findMany({
+    where: {
+      farmingWard: await wardScope(user),
+      ...(q
+        ? { OR: [{ firstNameNe: { contains: q } }, { lastNameNe: { contains: q } }, { firstNameEn: { contains: q, mode: "insensitive" } }, { user: { phoneNumber: { contains: q } } }] }
+        : {}),
+    },
+    include: {
+      user: { select: { phoneNumber: true, banned: true, accounts: { where: { providerId: "credential" }, select: { id: true } } } },
+      farmingWard: { select: { number: true } },
+      parcels: { select: { areaM2: true, verification: true, geometry: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  return farmers.map((f) => ({
+    id: f.id,
+    nameNe: [f.firstNameNe, f.middleNameNe, f.lastNameNe].filter(Boolean).join(" "),
+    mobile: f.user.phoneNumber,
+    hasPassword: f.user.accounts.length > 0,
+    disabled: !!f.user.banned,
+    ward: f.farmingWard.number,
+    tole: f.farmingTole,
+    citizenshipNo: maskCitizenship(f.citizenshipNo),
+    totalAreaM2: f.parcels.reduce((s, p) => s + p.areaM2, 0),
+    parcels: f.parcels.length,
+    mappedParcels: f.parcels.filter((p) => p.geometry).length,
+    verifiedParcels: f.parcels.filter((p) => p.verification === "VERIFIED").length,
+    source: f.source,
+  }));
+}
+
 export const farmerRoutes = new Hono<AppEnv>()
   .use("*", requireAuth, requireRole(...OFFICER_ROLES))
   .get("/", async (c) => {
+    const user = c.get("user");
     const q = c.req.query("q")?.trim();
-    const farmers = await getPrisma().farmer.findMany({
-      where: {
-        farmingWard: await wardScope(c.get("user")),
-        ...(q
-          ? { OR: [{ firstNameNe: { contains: q } }, { lastNameNe: { contains: q } }, { firstNameEn: { contains: q, mode: "insensitive" } }, { user: { phoneNumber: { contains: q } } }] }
-          : {}),
-      },
-      include: {
-        user: { select: { phoneNumber: true, banned: true, accounts: { where: { providerId: "credential" }, select: { id: true } } } },
-        farmingWard: { select: { number: true } },
-        parcels: { select: { areaM2: true, verification: true, geometry: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    return c.json(
-      farmers.map((f) => ({
-        id: f.id,
-        nameNe: [f.firstNameNe, f.middleNameNe, f.lastNameNe].filter(Boolean).join(" "),
-        mobile: f.user.phoneNumber,
-        hasPassword: f.user.accounts.length > 0,
-        disabled: !!f.user.banned,
-        ward: f.farmingWard.number,
-        tole: f.farmingTole,
-        citizenshipNo: maskCitizenship(f.citizenshipNo),
-        totalAreaM2: f.parcels.reduce((s, p) => s + p.areaM2, 0),
-        parcels: f.parcels.length,
-        mappedParcels: f.parcels.filter((p) => p.geometry).length,
-        verifiedParcels: f.parcels.filter((p) => p.verification === "VERIFIED").length,
-        source: f.source,
-      })),
-    );
+    return c.json(await cached(`farmers:${user.id}:${q ?? ""}`, MINUTE, () => listFarmers(user, q)));
   })
-  /** One farmer: profile (citizenship masked), fields with crops by season, subsidy. */
   .get("/:id", async (c) => {
     const f = await getPrisma().farmer.findFirst({
       where: { id: c.req.param("id"), farmingWard: await wardScope(c.get("user")) },
@@ -124,12 +126,6 @@ export const farmerRoutes = new Hono<AppEnv>()
       })),
     });
   })
-  /**
-   * Issue a one-time temporary password (no OTP/SMS in KrishiDristi).
-   * The officer hands it to the farmer in person; the farmer changes it after logging in.
-   * Returned once, never stored in plain text, and all the farmer's sessions are ended.
-   */
-  /** Turn a farmer's app account off (lost phone, misuse, death) or back on. Data is kept. */
   .post("/:id/access", zValidator("json", accessSchema), async (c) => {
     const user = c.get("user");
     const prisma = getPrisma();

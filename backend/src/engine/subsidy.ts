@@ -1,9 +1,3 @@
-/**
- * Need-based subsidy allocation, fertilizer demand and misuse flags
- * (docs/05-engine-algorithms.md §8). Doses are initial values pending NARC review.
- */
-
-/** Recommended product dose, kg/ha, by crop (initial values for demo). */
 export const FERTILIZER_DOSE_KG_HA: Record<string, Record<string, number>> = {
   paddy: { Urea: 180, DAP: 65, MOP: 50 },
   wheat: { Urea: 200, DAP: 110, MOP: 40 },
@@ -17,12 +11,10 @@ export const FERTILIZER_DOSE_KG_HA: Record<string, Record<string, number>> = {
 export interface FarmerNeedInput {
   farmerId: string;
   registeredAreaM2: number;
-  /** Cultivated area per crop this season. */
   crops: { crop: string; areaM2: number }[];
   alreadyDeliveredKg: number;
   tenant: boolean;
   verified: boolean;
-  /** Subsidy received in the last 3 seasons (kg of this product). */
   recentSubsidyKg: number;
   claimedAreaM2?: number;
 }
@@ -58,11 +50,6 @@ export function misuseFlags(input: FarmerNeedInput): string[] {
   return flags;
 }
 
-/**
- * Allocate limited stock. If stock covers total need, everyone gets their need;
- * otherwise stock is shared in proportion to need × (0.5 + priority), capped at need.
- * Farmers with blocking flags get nothing until an officer resolves them.
- */
 export function allocate(farmers: FarmerNeedInput[], product: string, stockKg: number): AllocationLine[] {
   const BLOCKING = new Set(["NO_CULTIVATION_DECLARED", "CULTIVATED_EXCEEDS_REGISTERED_AREA"]);
   const lines = farmers.map((f) => {
@@ -77,7 +64,6 @@ export function allocate(farmers: FarmerNeedInput[], product: string, stockKg: n
     return lines;
   }
 
-  // Iterative proportional fill so capped farmers release stock to others.
   let remaining = stockKg;
   let open = lines.filter((l) => l.needKg > 0);
   while (remaining > 0.5 && open.length) {
@@ -97,7 +83,6 @@ export function allocate(farmers: FarmerNeedInput[], product: string, stockKg: n
   return lines;
 }
 
-/** Ward-level demand per product for stock ordering and storage planning. */
 export function demandByProduct(farmers: FarmerNeedInput[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const product of ["Urea", "DAP", "MOP"]) {

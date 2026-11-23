@@ -1,20 +1,23 @@
-/**
- * POST /v1/chat   { message, history? } -> { answerNe, answerEn, understoodEn, intent, sources, mode }
- * GET  /v1/chat/suggestions                 -> starter questions for the app
- *
- * Farmers get answers grounded in their own farm data; officers get knowledge-base answers.
- * Works with no API key ("local" mode). With ANTHROPIC_API_KEY set, Claude writes the reply ("llm" mode).
- */
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { answer, llmConfigured } from "../chat/answer";
 import { farmerContext } from "../chat/context";
+import { audioFromRequest, MAX_AUDIO_BYTES } from "../chat/audio";
 import { geminiConfigured, transcribeNepali } from "../chat/gemini";
+import { answerOfficer, officerSummary } from "../chat/officer";
 import { getPrisma } from "../db";
 import { wardScope } from "../scope";
 import type { AppEnv } from "../types";
+
+const OFFICER_SUGGESTIONS = [
+  { ne: "यो महिना कुन वडामा डढुवाको चेतावनी आयो?", en: "Which wards had blight alerts this month?" },
+  { ne: "कति जग्गा बाँझो छ?", en: "How much land is fallow?" },
+  { ne: "मल अनुदान कति वितरण भयो?", en: "How much fertilizer subsidy has been delivered?" },
+  { ne: "कति कित्ता प्रमाणित हुन बाँकी छ?", en: "How many parcels are still unverified?" },
+  { ne: "यो हप्ता किसानले के सोधे?", en: "What did farmers ask this week?" },
+];
 
 const body = z.object({
   message: z.string().trim().min(1).max(500),
@@ -29,7 +32,7 @@ export const chatRoutes = new Hono<AppEnv>()
   .get("/suggestions", (c) =>
     c.json({
       mode: geminiConfigured() ? "gemini" : llmConfigured() ? "llm" : "local",
-      suggestions: [
+      suggestions: c.get("user").role !== "FARMER" ? OFFICER_SUGGESTIONS : [
         { ne: "भोलि पानी पर्छ?", en: "Will it rain tomorrow?" },
         { ne: "आज खेतमा के काम गर्ने?", en: "What should I do in the field today?" },
         { ne: "मेरो खेतमा युरिया कति हाल्ने?", en: "How much urea for my field?" },
@@ -38,15 +41,13 @@ export const chatRoutes = new Hono<AppEnv>()
       ],
     }),
   )
-  /** Voice input: multipart field "audio" (m4a/aac/wav/...) -> { text } in Nepali, via Gemini. */
   .post("/transcribe", async (c) => {
     if (!geminiConfigured()) return c.json({ error: "voice_not_configured", messageNe: "आवाज पहिचान अहिले चालू छैन।" }, 503);
-    const form = await c.req.formData().catch(() => null);
-    const file = form?.get("audio");
-    if (!(file instanceof File) || file.size === 0) return c.json({ error: "audio_required" }, 400);
-    if (file.size > 8 * 1024 * 1024) return c.json({ error: "audio_too_large" }, 413);
+    const audio = await audioFromRequest(c.req.raw);
+    if (!audio) return c.json({ error: "audio_required" }, 400);
+    if (audio.bytes.length > MAX_AUDIO_BYTES) return c.json({ error: "audio_too_large" }, 413);
     try {
-      const text = await transcribeNepali(Buffer.from(await file.arrayBuffer()), file.type || "audio/mp4");
+      const text = await transcribeNepali(audio.bytes, audio.mimeType);
       return c.json({ text });
     } catch (e) {
       console.warn("[chat] transcribe failed:", e instanceof Error ? e.message : e);
@@ -56,12 +57,13 @@ export const chatRoutes = new Hono<AppEnv>()
   .post("/", zValidator("json", body), async (c) => {
     const user = c.get("user");
     const { message, history } = c.req.valid("json");
-    const ctx = user.role === "FARMER" ? await farmerContext(user.id) : null;
+    if (user.role !== "FARMER") return c.json(await answerOfficer(user, message, history));
+    const ctx = await farmerContext(user.id);
     const result = await answer(message, history, ctx);
     if (user.role === "FARMER") void logQuestion(user.id, message, result);
     return c.json(result);
   })
-  /** Officer: what farmers in their area asked, newest first, with a count per topic. */
+  .get("/officer-summary", requireRole(...OFFICER_ROLES), async (c) => c.json(await officerSummary(c.get("user"), { fresh: c.req.query("fresh") === "1" })))
   .get("/questions", requireRole(...OFFICER_ROLES), zValidator("query", z.object({ intent: z.string().max(30).optional(), q: z.string().max(100).optional() })), async (c) => {
     const { intent, q } = c.req.valid("query");
     const prisma = getPrisma();
@@ -82,7 +84,6 @@ export const chatRoutes = new Hono<AppEnv>()
     });
   });
 
-/** Best effort: a failed log must never break the farmer's answer. No phone number or name is stored. */
 async function logQuestion(userId: string, question: string, result: Awaited<ReturnType<typeof answer>>) {
   try {
     const prisma = getPrisma();
@@ -91,6 +92,5 @@ async function logQuestion(userId: string, question: string, result: Awaited<Ret
       data: { userId, wardId: farmer?.farmingWardId ?? null, question, understoodEn: result.understoodEn ?? null, intent: result.intent, answerNe: result.answerNe, mode: result.mode },
     });
   } catch {
-    // ignore
   }
 }

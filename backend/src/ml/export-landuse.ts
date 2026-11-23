@@ -1,4 +1,3 @@
-/** Write the land-use training table: npx tsx src/ml/export-landuse.ts [out.csv] (default ../ml/data/landuse.csv) */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { exportLanduseRows } from "./jobs";

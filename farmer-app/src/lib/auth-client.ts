@@ -1,20 +1,15 @@
-/**
- * Better Auth client for the farmer app.
- * The expo plugin stores the session cookie in SecureStore and attaches it to
- * auth requests; `authHeaders()` does the same for our own /v1 API calls.
- */
 import { expoClient } from "@better-auth/expo/client";
 import { adminClient, inferAdditionalFields, phoneNumberClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import * as SecureStore from "expo-secure-store";
 import { ac, roles } from "./permissions";
+import { clearDataCache } from "./data-cache";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8787";
 
 export const authClient = createAuthClient({
   baseURL: `${API_URL}/v1/auth`,
   plugins: [
-    // cookiePrefix must match `advanced.cookiePrefix` on the server, or the session is never refreshed after sign-in.
     expoClient({ scheme: "krishidristi", storagePrefix: "krishidristi", cookiePrefix: "krishidristi", storage: SecureStore }),
     phoneNumberClient(),
     adminClient({ ac, roles }),
@@ -22,9 +17,13 @@ export const authClient = createAuthClient({
   ],
 });
 
-export const { useSession, signOut } = authClient;
+export const { useSession } = authClient;
 
-/** Cookie header for authenticated calls to the KrishiDristi API. */
+export function signOut(...args: Parameters<typeof authClient.signOut>) {
+  clearDataCache();
+  return authClient.signOut(...args);
+}
+
 export async function authHeaders(): Promise<Record<string, string>> {
   const cookie = await authClient.getCookie();
   return cookie ? { Cookie: cookie } : {};

@@ -9,7 +9,6 @@ export interface Slice {
   value: number;
 }
 
-/** Horizontal bar list. Bars are scaled to the largest value, or to the total when `ofTotal` is set. */
 export function BarList({ rows, unit, color = "#4A9F1E", ofTotal = false }: { rows: Slice[]; unit?: string; color?: string; ofTotal?: boolean }) {
   const { tr, num } = useLang();
   if (!rows.length) return <p className="text-small text-muted">{tr("तथ्याङ्क छैन", "No data")}</p>;
@@ -39,7 +38,6 @@ export function BarList({ rows, unit, color = "#4A9F1E", ofTotal = false }: { ro
   );
 }
 
-/** Rounds a raw step up to 1, 2, 2.5, 5 or 10 times a power of ten, so axis labels are round numbers. */
 function niceStep(raw: number) {
   const pow = 10 ** Math.floor(Math.log10(raw));
   const f = raw / pow;
@@ -48,11 +46,6 @@ function niceStep(raw: number) {
 
 const DEVANAGARI = "०१२३४५६७८९";
 
-/**
- * Line chart for a daily series: labelled y axis with gridlines, dated x axis, a soft area under the
- * line and a hover readout. The y axis does not start at zero because the series moves by a tiny
- * share of its total, and the note under the chart says so.
- */
 export function TrendLine({ values, labels, title }: { values: number[]; labels: string[]; title: string }) {
   const { tr, num, lang } = useLang();
   const [hover, setHover] = useState<number | null>(null);

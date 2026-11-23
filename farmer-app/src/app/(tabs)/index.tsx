@@ -1,4 +1,3 @@
-/** Home: today at a glance (weather, next job, subsidy), then big shortcuts to everything else. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -7,7 +6,7 @@ import { Card, IconTile, Loading, Muted, Screen, type IconName } from "@/compone
 import { dateText, isActiveOrUpcoming, TASK_EN } from "@/lib/farm";
 import { useLang } from "@/lib/i18n";
 import { notifyNewDangerAlerts, prepareReminders, remindersEnabled, scheduleTaskReminders } from "@/lib/reminders";
-import { useData, type Advisory, type Alert, type Allocation, type CalendarResponse, type Me, type Parcel } from "@/lib/use-data";
+import { useData, type Advisory, type Alert, type Allocation, type CalendarResponse, type Me, type OpenScheme, type Parcel } from "@/lib/use-data";
 import { theme } from "@/theme";
 
 const c = theme.colors;
@@ -18,13 +17,13 @@ export default function Home() {
   const parcels = useData<Parcel[]>("/v1/parcels");
   const feed = useData<{ alerts: Alert[]; advisories: Advisory[] }>("/v1/alerts");
   const subsidy = useData<Allocation[]>("/v1/subsidies/mine");
+  const openSchemes = useData<OpenScheme[]>("/v1/subsidies/open");
   const first = parcels.data?.[0];
   const calendar = useData<CalendarResponse>(first ? `/v1/calendar?parcelId=${first.id}` : null);
 
   const [remind, setRemind] = useState(true);
   const [permission, setPermission] = useState<boolean | null>(null);
 
-  // The alarm switch lives in Settings; pick up changes whenever Home is shown again.
   useFocusEffect(
     useCallback(() => {
       void remindersEnabled().then(setRemind);
@@ -32,7 +31,6 @@ export default function Home() {
     }, []),
   );
 
-  // Keep phone alarms in step with the calendar and alerts.
   useEffect(() => {
     if (remind && permission && calendar.data) void scheduleTaskReminders(calendar.data.events, lang);
   }, [remind, permission, calendar.data, lang]);
@@ -52,7 +50,6 @@ export default function Home() {
   const alert = feed.data?.alerts.find((a) => a.severity === "SEVERE") ?? feed.data?.alerts[0];
   const severe = alert?.severity === "SEVERE";
   const next = useMemo(() => calendar.data?.events.find((e) => isActiveOrUpcoming(e.endsOn)), [calendar.data]);
-  // Show the allocation still to come first; otherwise the latest one received.
   const sub = useMemo(() => subsidy.data?.find((a) => a.status !== "DELIVERED") ?? subsidy.data?.[0], [subsidy.data]);
   const subGot = sub?.status === "DELIVERED";
   const today = dateText(new Date().toISOString().slice(0, 10), lang);
@@ -70,7 +67,6 @@ export default function Home() {
     <Screen title={tr(`नमस्ते${name ? ` ${name}` : ""}`, `Hello${name ? ` ${name}` : ""}`)} headerRight={<DateChip text={today} />} refreshing={me.loading || feed.loading} onRefresh={refresh}>
       <Text style={styles.section}>{tr("आज", "Today")}</Text>
 
-      {/* Weather or danger */}
       <Pressable onPress={() => router.push("/alerts")} accessibilityRole="button">
         <Card style={severe ? { borderColor: c.danger } : undefined}>
           {feed.loading && !feed.data ? (
@@ -90,7 +86,6 @@ export default function Home() {
         </Card>
       </Pressable>
 
-      {/* Next job */}
       <Pressable onPress={() => router.push("/calendar")} accessibilityRole="button">
         <Card>
           {calendar.loading && !calendar.data ? (
@@ -120,7 +115,6 @@ export default function Home() {
         </Card>
       </Pressable>
 
-      {/* Subsidy */}
       <Pressable onPress={() => router.push("/subsidy")} accessibilityRole="button">
         <Card>
           {subsidy.loading && !subsidy.data ? (
@@ -131,7 +125,7 @@ export default function Home() {
               <View style={styles.rowText}>
                 <Text style={styles.caption}>{tr("अनुदान", "Subsidy")}</Text>
                 <Text style={styles.big} numberOfLines={2}>
-                  {sub ? sub.scheme.name : tr("अहिलेसम्म छैन", "None yet")}
+                  {sub ? sub.scheme.name : openSchemes.data?.length ? tr(`${num(openSchemes.data.length)} कार्यक्रम खुला`, `${openSchemes.data.length} programmes open`) : tr("अहिलेसम्म छैन", "None yet")}
                 </Text>
                 {sub ? <Text style={[styles.state, { color: subGot ? c.brand[700] : c.warning }]}>{subGot ? tr("पाइयो", "Received") : tr("आउन बाँकी", "Coming")}</Text> : null}
               </View>

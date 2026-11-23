@@ -1,9 +1,5 @@
 "use client";
 
-/**
- * MapLibre map of parcels (GeoJSON points/polygons from /v1/map/parcels), coloured by crop.
- * Base map: OpenStreetMap raster tiles (fine for a pilot; self-host or use a tile provider at scale).
- */
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import { useEffect, useRef } from "react";
@@ -21,13 +17,12 @@ export interface ParcelFeature {
     tole: string;
     crop: string | null;
     cropNe: string | null;
-    /** Satellite status for the season shown (dashboard). */
     status?: string;
   };
 }
 
 const NO_CROP = "#9CA3AF";
-const PILOT_CENTER: [number, number] = [80.18, 28.97]; // Bhimdatta; the map fits to the fields anyway
+const PILOT_CENTER: [number, number] = [80.18, 28.97];
 const STATUS_COLORS: Record<string, string> = { cultivated: "#1f7a4d", weak: "#d9a93a", fallow: "#a0522d", unknown: "#c3c8d1" };
 
 export function ParcelMap({ features, selectedId, onSelect, colorBy = "crop", height = "h-[460px]" }: { features: ParcelFeature[]; selectedId?: string | null; onSelect?: (id: string) => void; colorBy?: "crop" | "status"; height?: string }) {
@@ -37,13 +32,10 @@ export function ParcelMap({ features, selectedId, onSelect, colorBy = "crop", he
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
-  // Create the map once.
   useEffect(() => {
     let cancelled = false;
     void import("maplibre-gl").then((maplibregl) => {
       if (cancelled || !el.current) return;
-      // Turbopack can't resolve MapLibre's worker next to its bundle; serve it from /public
-      // (copied by scripts/copy-maplibre-worker.mjs before dev/build).
       maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
       const map = new maplibregl.Map({
         container: el.current,
@@ -116,7 +108,6 @@ export function ParcelMap({ features, selectedId, onSelect, colorBy = "crop", he
     };
   }, []);
 
-  // Push data + fit bounds whenever features change.
   useEffect(() => {
     let stop = false;
     const apply = () => {

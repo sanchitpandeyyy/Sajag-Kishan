@@ -8,10 +8,6 @@ import type { AppEnv } from "../types";
 
 const MAX_CSV_BYTES = 5 * 1024 * 1024;
 
-/**
- * POST /v1/integrations/registry/import  (text/csv body or multipart "file")
- * Auto-enrolls farmers from the government registry export.
- */
 export const integrationRoutes = new Hono<AppEnv>()
   .use("*", requireAuth, requireRole(...OFFICER_ROLES))
   .post("/registry/import", async (c) => {
@@ -28,7 +24,6 @@ export const integrationRoutes = new Hono<AppEnv>()
     }
     const report = await importRecords(new CsvRegistryAdapter(csv));
 
-    // Keep the original export in Neon Object Storage for audit (best effort).
     let archivedKey: string | null = null;
     if (storageConfigured()) {
       try {

@@ -17,7 +17,6 @@ interface FarmerRow {
   hasPassword: boolean;
 }
 
-/** CSV with a UTF-8 byte-order mark so Excel shows Devanagari correctly. */
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const esc = (v: string | number) => {
     const s = String(v);
@@ -63,7 +62,6 @@ export default function ReportsPage() {
       ...Object.entries(s.fertilizerDemandKg).map(([p, kg]) => [p, Math.round(kg), Math.ceil(kg / 50)]),
     ]);
 
-  // Personal data stays out of exports: no mobile or citizenship numbers.
   const farmerCsv = () =>
     farmers.data &&
     downloadCsv(`farmers-${stamp}.csv`, [
@@ -104,7 +102,7 @@ export default function ReportsPage() {
         <Card>
           <article className="space-y-6">
             <header className="border-b border-line pb-4">
-              <p className="text-sm text-ink-muted">{tr("सजग किसान, कृषि शाखा", "Sajag Kishan, agriculture office")}</p>
+              <p className="text-sm text-ink-muted">{tr("कृषि दृष्टि, कृषि शाखा", "Krishi Dristi, agriculture office")}</p>
               <h2 className="text-2xl font-bold text-brand-800">{tr(`कृषि भूमि तथा बाली प्रतिवेदन, ${place}`, `Agricultural land and crop report, ${place}`)}</h2>
               <p className="text-sm text-ink-muted">
                 {tr(`आ.व. ${s.fiscalYearBs}, ${season[0]} मौसम. मिति: ${today}`, `FY ${s.fiscalYearBs}, ${season[1]} season. Date: ${today}`)}

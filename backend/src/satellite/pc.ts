@@ -1,8 +1,3 @@
-/**
- * Microsoft Planetary Computer helpers shared by Sentinel-2, Sentinel-1 and the terrain model.
- * Free and open, no account: STAC search + a short-lived SAS token per collection, then HTTP range
- * reads of only the few pixels around a field from cloud-optimised GeoTIFFs.
- */
 import { fromUrl } from "geotiff";
 import proj4 from "proj4";
 
@@ -38,7 +33,6 @@ export async function stacSearch(body: Record<string, unknown>, fetchImpl: typeo
   return ((await res.json()) as { features: StacItem[] }).features;
 }
 
-/** EPSG code of an item, from `proj:epsg` or `proj:code` ("EPSG:32645"). */
 export function epsgOf(p: Record<string, unknown>): number {
   return (p["proj:epsg"] as number | undefined) ?? Number(String(p["proj:code"] ?? "").replace("EPSG:", ""));
 }
@@ -49,7 +43,6 @@ export function utmFor(epsg: number): string {
   return `+proj=utm +zone=${zone} ${south ? "+south " : ""}+datum=WGS84 +units=m +no_defs`;
 }
 
-/** Lat/lng to the scene's CRS (UTM metres, or degrees for EPSG:4326). */
 export function toSceneXY(epsg: number, lat: number, lng: number): [number, number] {
   if (epsg === 4326) return [lng, lat];
   const [x, y] = proj4("EPSG:4326", utmFor(epsg), [lng, lat]);
@@ -60,12 +53,10 @@ export interface PixelWindow {
   values: number[];
   width: number;
   height: number;
-  /** Pixel size in the scene's units (metres for UTM, degrees for EPSG:4326). */
   resX: number;
   resY: number;
 }
 
-/** Read a small square window (radius pixels) around x,y. Values are row by row. */
 export async function readWindow(href: string, x: number, y: number, radius: number): Promise<PixelWindow> {
   const tiff = await fromUrl(href, { allowFullFile: false });
   const image = await tiff.getImage();

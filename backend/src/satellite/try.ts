@@ -1,4 +1,3 @@
-/** Manual check of every satellite source for one point: npx tsx src/satellite/try.ts <lat> <lng> */
 import { backscatterAt, radarVerdict, searchRadarScenes } from "./sentinel1";
 import { greennessVerdict, indicesAt, searchScenes } from "./sentinel2";
 import { terrainAt } from "./terrain";

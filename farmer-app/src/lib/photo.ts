@@ -1,4 +1,3 @@
-/** Take a photo of a field with the camera and store it (Neon Object Storage, via the API). */
 import * as ImagePicker from "expo-image-picker";
 import { apiUpload } from "./api";
 
@@ -13,7 +12,6 @@ export async function takeFieldPhoto(parcelId: string): Promise<PhotoResult> {
   const form = new FormData();
   form.append("entity", "parcel");
   form.append("entityId", parcelId);
-  // React Native's FormData accepts a { uri, name, type } file descriptor.
   form.append("file", { uri: a.uri, name: a.fileName ?? `field-${Date.now()}.jpg`, type: a.mimeType ?? "image/jpeg" } as unknown as Blob);
   try {
     await apiUpload("/v1/files", form);

@@ -1,13 +1,8 @@
-/**
- * Government farmer-registry integration (docs/04-gov-integration.md §3).
- * Adapters yield raw records; `importRecords` validates, normalizes, dedupes and upserts.
- */
 import { getPrisma } from "../db";
 import { ensurePhoneUser } from "../lib/accounts";
 import { registryFarmerSchema, toSquareMetres, type CompoundArea, type RegistryFarmerRecord } from "../shared";
 import { z } from "zod";
 
-/** A registry record plus the land area the agriculture office already holds. */
 export const registryRowSchema = registryFarmerSchema.extend({
   land: z
     .array(z.object({ wardId: z.number().int().positive(), tole: z.string().min(1), area: z.record(z.string(), z.number().nonnegative()), kittaNo: z.string().optional() }))
@@ -20,12 +15,10 @@ export interface RegistryAdapter {
   fetchFarmers(since?: Date): AsyncIterable<unknown>;
 }
 
-/** CSV export from the registry (one row per farmer; land columns optional). */
 export class CsvRegistryAdapter implements RegistryAdapter {
   name = "csv";
   private readonly csv: string;
   constructor(csv: string) {
-    // Excel saves UTF-8 CSV with a byte-order mark; drop it so the first header matches.
     this.csv = csv.replace(/^﻿/, "");
   }
 
@@ -70,7 +63,6 @@ export class CsvRegistryAdapter implements RegistryAdapter {
   }
 }
 
-/** Minimal RFC 4180 CSV parser (quoted fields, escaped quotes, CRLF). */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -110,7 +102,6 @@ export interface ImportReport {
   errors: { index: number; message: string }[];
 }
 
-/** Validate → normalize → dedupe (citizenship+district, then mobile) → upsert. */
 export async function importRecords(adapter: RegistryAdapter): Promise<ImportReport> {
   const prisma = getPrisma();
   const report: ImportReport = { adapter: adapter.name, received: 0, created: 0, updated: 0, parcelsCreated: 0, errors: [] };
@@ -136,7 +127,6 @@ export async function importRecords(adapter: RegistryAdapter): Promise<ImportRep
         await prisma.farmer.update({ where: { id: existing.id }, data: farmerData });
         report.updated++;
       } else {
-        // No password yet: an agriculture officer issues a temporary one (POST /v1/farmers/:id/password).
         const userId = await ensurePhoneUser(prisma, {
           mobile: r.mobile,
           name: [r.firstNameEn ?? r.firstNameNe, r.lastNameEn ?? r.lastNameNe].filter(Boolean).join(" "),

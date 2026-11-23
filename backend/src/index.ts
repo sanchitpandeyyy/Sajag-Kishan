@@ -5,10 +5,9 @@ import { env } from "./env";
 import { refreshWardAlerts } from "./jobs/alerts";
 
 serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, (info) => {
-  console.log(`KrishiDristi API listening on http://localhost:${info.port}`);
+  console.log(`Krishi Dristi API listening on http://localhost:${info.port}`);
 });
 
-// In-process scheduler for the MVP: refresh weather alerts every 3 h for wards that have parcels.
 const THREE_HOURS = 3 * 60 * 60 * 1000;
 async function alertsTick() {
   if (!process.env.DATABASE_URL) return;

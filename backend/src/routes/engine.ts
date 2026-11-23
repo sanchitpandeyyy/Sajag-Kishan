@@ -1,7 +1,3 @@
-/**
- * Engine demo endpoints. They need no database, so the clients can be built
- * and demoed before Neon is configured.
- */
 import {
   evaluateLateBlight,
   evaluateRiceBlast,

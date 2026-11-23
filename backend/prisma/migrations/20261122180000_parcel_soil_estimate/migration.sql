@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Parcel" ADD COLUMN "soilPhSource" TEXT,
+ADD COLUMN "soilOrganicC" DOUBLE PRECISION,
+ADD COLUMN "soilNitrogen" DOUBLE PRECISION,
+ADD COLUMN "clayPct" DOUBLE PRECISION,
+ADD COLUMN "soilEstimatedAt" TIMESTAMP(3);

@@ -28,7 +28,6 @@ function Routes() {
 
   if (!ready) return null;
   const signedIn = !!session?.user;
-  // An officer-issued temporary password must be replaced before anything else.
   const mustChange = signedIn && !!session.user.mustChangePassword;
 
   return (

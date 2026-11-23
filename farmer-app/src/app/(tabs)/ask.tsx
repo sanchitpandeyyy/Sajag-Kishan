@@ -1,7 +1,3 @@
-/**
- * Ask: talk to the farming helper in Nepali. One big mic button, a few starter questions,
- * answers read aloud. Answers come from the farmer's own data and reviewed knowledge.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { type ComponentRef, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -18,7 +14,6 @@ const c = theme.colors;
 interface Turn {
   role: "user" | "assistant";
   text: string;
-  textEn?: string;
 }
 interface ChatAnswer {
   answerNe: string;
@@ -67,8 +62,8 @@ export default function Ask() {
     setBusy(true);
     try {
       const a = await api<ChatAnswer>("/v1/chat", { method: "POST", body: JSON.stringify({ message: q, history }) });
-      setTurns((t) => [...t, { role: "assistant", text: a.answerNe, textEn: a.answerEn }]);
-      if (spoken && (await speakRepliesEnabled())) void speak(lang === "en" ? a.answerEn : a.answerNe, lang);
+      setTurns((t) => [...t, { role: "assistant", text: a.answerNe }]);
+      if (spoken && (await speakRepliesEnabled())) void speak(a.answerNe, "ne");
     } catch {
       setError(tr("जवाफ आउन सकेन। इन्टरनेट जाँच्नुहोस्।", "Could not get an answer. Check the internet."));
     } finally {
@@ -87,7 +82,6 @@ export default function Ask() {
       try {
         const heard = await recorder.stop();
         if (heard) {
-          // Send what was heard straight away; the answer is then read aloud.
           setTranscribing(false);
           void send(heard, true);
         } else {
@@ -140,9 +134,9 @@ export default function Ask() {
           ) : (
             turns.map((t, i) => (
               <View key={i} style={[styles.bubble, t.role === "user" ? styles.userBubble : styles.botBubble]}>
-                <Text style={[styles.bubbleText, t.role === "user" && { color: c.white }]}>{lang === "en" && t.textEn ? t.textEn : t.text}</Text>
+                <Text style={[styles.bubbleText, t.role === "user" && { color: c.white }]}>{t.text}</Text>
                 {t.role === "assistant" ? (
-                  <Pressable onPress={() => speak(lang === "en" && t.textEn ? t.textEn : t.text, lang)} hitSlop={10} style={styles.speakBtn} accessibilityLabel={tr("सुन्नुहोस्", "Listen")}>
+                  <Pressable onPress={() => speak(t.text, "ne")} hitSlop={10} style={styles.speakBtn} accessibilityLabel={tr("सुन्नुहोस्", "Listen")}>
                     <Ionicons name="volume-high" size={20} color={c.brand[800]} />
                     <Text style={styles.speakText}>{tr("सुन्नुहोस्", "Listen")}</Text>
                   </Pressable>

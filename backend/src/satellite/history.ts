@@ -1,11 +1,3 @@
-/**
- * Past seasons for a field: for each growing window (engine/land-transparency.ts seasonWindows), make
- * sure there are at least 2 clear Sentinel-2 readings, picking the least cloudy scenes spread through
- * the window. Also records the field's land cover (ESA WorldCover) once.
- *
- * This is what lets the dashboard answer "was this land cultivated in previous seasons?" for every
- * field, ward and municipality, without asking anyone.
- */
 import { getPrisma, type Prisma } from "../db";
 import { seasonWindows } from "../engine/land-transparency";
 import { landCoverAt } from "./landcover";
@@ -35,7 +27,6 @@ export async function syncParcelHistory(parcelId: string, opts: { seasons?: numb
     if (have.filter((o) => o.ndvi != null).length >= MIN_CLEAR) continue;
     const taken = new Set(have.map((o) => o.observedOn.toISOString().slice(0, 10)));
 
-    // Least cloudy first, then keep scenes at least SPACING_DAYS apart so the season is covered.
     const scenes = (await searchScenes(lat, lng, { from: w.from, to, maxCloud: 30, limit: 40 })).sort((a, b) => a.cloudPct - b.cloudPct);
     const picked: typeof scenes = [];
     for (const s of scenes) {
@@ -56,6 +47,8 @@ export async function syncParcelHistory(parcelId: string, opts: { seasons?: numb
           ndre: r.ndre,
           ndwi: r.ndwi,
           ndmi: r.ndmi,
+          evi: r.evi,
+          savi: r.savi,
           cloudPct: r.cloudPct,
           meta: { sceneId: r.sceneId, scl: r.scl, window: w.key } as Prisma.InputJsonValue,
         },

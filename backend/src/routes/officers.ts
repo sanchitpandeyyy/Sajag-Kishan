@@ -1,8 +1,3 @@
-/**
- * Super admin: manage agriculture-officer accounts.
- * An officer = Better Auth user (role AGRICULTURE_OFFICER) + OfficerProfile with the
- * local level (palika) whose agriculture section they run.
- */
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -33,7 +28,6 @@ export const officerRoutes = new Hono<AppEnv>()
       }),
     ),
   )
-  /** Creates the officer with a temporary password, shown once to the super admin. */
   .post("/", zValidator("json", createOfficerSchema), async (c) => {
     const body = c.req.valid("json");
     const prisma = getPrisma();
@@ -54,7 +48,6 @@ export const officerRoutes = new Hono<AppEnv>()
     await audit(c.get("user").id, "officer.create", "OfficerProfile", profile.id, null, { localLevelId: body.localLevelId });
     return c.json({ officer: profile, mobile: body.mobile, temporaryPassword: password }, 201);
   })
-  /** Turn an officer account off (transfer, leave, misuse) or back on. A super admin cannot turn off their own account. */
   .post("/:userId/access", zValidator("json", z.object({ disabled: z.boolean(), reason: z.string().trim().max(200).optional() })), async (c) => {
     const me = c.get("user");
     const userId = c.req.param("userId");
@@ -67,7 +60,6 @@ export const officerRoutes = new Hono<AppEnv>()
     await audit(me.id, disabled ? "officer.disable" : "officer.enable", "OfficerProfile", profile.id, null, { reason: reason ?? null });
     return c.json({ ok: true, disabled });
   })
-  /** Issue a new temporary password for an officer who forgot theirs. */
   .post("/:userId/password", async (c) => {
     const userId = c.req.param("userId");
     const prisma = getPrisma();

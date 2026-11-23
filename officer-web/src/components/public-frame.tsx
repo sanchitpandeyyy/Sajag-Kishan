@@ -6,11 +6,6 @@ import { ButtonLink } from "@/components/ui";
 import { isOfficerRole, useSession } from "@/lib/auth-client";
 import { LangToggle, useLang } from "@/lib/i18n";
 
-/**
- * Frame for the public national data pages. They are public research pages, not part of the
- * officer dashboard, so everyone gets the same plain header; signed-in officers see a
- * "Dashboard" button instead of "Sign in".
- */
 export function PublicFrame({ title, subtitle, action, crumbs, children }: { title: string; subtitle?: string; action?: React.ReactNode; crumbs?: React.ReactNode; children: React.ReactNode }) {
   const { tr } = useLang();
   const { data: session } = useSession();
@@ -20,7 +15,7 @@ export function PublicFrame({ title, subtitle, action, crumbs, children }: { tit
     <div className="flex min-h-dvh flex-col bg-page">
       <header className="sticky top-0 z-40 border-b border-line bg-white px-4 md:px-8">
         <div className="mx-auto flex min-h-[72px] max-w-[1200px] items-center gap-2">
-          <Link href="/" aria-label={tr("सजग किसान गृहपृष्ठ", "Sajag Kishan home")} className="mr-2 lg:mr-6">
+          <Link href="/" aria-label={tr("कृषि दृष्टि गृहपृष्ठ", "Krishi Dristi home")} className="mr-2 lg:mr-6">
             <BrandMark size={36} />
           </Link>
           <nav aria-label={tr("साइट", "Site")} className="hidden items-center gap-1 sm:flex">

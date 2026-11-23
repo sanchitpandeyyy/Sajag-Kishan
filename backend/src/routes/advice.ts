@@ -1,9 +1,3 @@
-/**
- * GET /v1/advice?parcelId=…  Disease and pest risk for one field this week:
- * likely problem, why, how to prevent it, what to do if signs appear (Nepali + English).
- * Based on the forecast at the field, the crop declared this season, its growth stage and
- * the ward's alert history. No diagnosis by the farmer.
- */
 import { Hono } from "hono";
 import { requireAuth } from "../auth";
 import { getPrisma } from "../db";

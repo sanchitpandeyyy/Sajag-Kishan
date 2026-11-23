@@ -14,7 +14,6 @@ import { NATIONAL_KPIS, NATIONAL_SOURCE } from "@/lib/national-data";
 import { unsplashLoader } from "@/lib/unsplash-loader";
 import { useLandingMotion } from "@/lib/use-landing-motion";
 
-/** Unsplash License photos (free to use, attribution not required), hotlinked from the Unsplash CDN. */
 const PHOTOS = {
   plowing: {
     src: "https://images.unsplash.com/photo-1764292869846-f54b1786cc65",
@@ -33,13 +32,11 @@ const PHOTOS = {
   },
 } as const;
 
-/** Hero entrance: each item fades up a little after the previous one. */
 const rise = {
   hidden: { opacity: 0, y: 18 },
   show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: 0.08 * i, duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } }),
 };
 
-/** Public landing page for Sajag Kishan, with the agriculture office sign in. */
 export default function Landing() {
   const { tr, num, lang } = useLang();
   const { data: session, isPending } = useSession();
@@ -102,10 +99,9 @@ export default function Landing() {
 
   return (
     <div ref={root} className="flex min-h-dvh flex-col bg-white">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-line bg-white px-4 md:px-8">
         <div className="mx-auto flex min-h-[72px] max-w-[1200px] items-center gap-2">
-          <Link href="/" aria-label={tr("सजग किसान गृहपृष्ठ", "Sajag Kishan home")} className="mr-2 lg:mr-6">
+          <Link href="/" aria-label={tr("कृषि दृष्टि गृहपृष्ठ", "Krishi Dristi home")} className="mr-2 lg:mr-6">
             <BrandMark size={36} />
           </Link>
           <nav aria-label={tr("साइट", "Site")} className="hidden items-center gap-1 lg:flex">
@@ -138,7 +134,6 @@ export default function Landing() {
       </header>
 
       <main className="flex flex-col">
-        {/* Hero */}
         <section className="bg-white px-4 pt-14 pb-16 md:px-8 md:pt-20 md:pb-24">
           <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-6 text-center">
             <motion.div {...enter(0)}>
@@ -149,8 +144,8 @@ export default function Landing() {
             </motion.h1>
             <motion.p {...enter(2)} className="max-w-[640px] text-lead text-body">
               {tr(
-                "सजग किसानले पालिकाको कृषि शाखालाई जग्गा, बाली र अनुदानको स्पष्ट जानकारी दिन्छ, र किसानलाई कहिले के गर्ने भन्ने पात्रो।",
-                "Sajag Kishan gives municipal agriculture offices a clear view of land, crops and subsidy, and gives farmers a calendar of what to do and when.",
+                "कृषि दृष्टिले पालिकाको कृषि शाखालाई जग्गा, बाली र अनुदानको स्पष्ट जानकारी दिन्छ, र किसानलाई कहिले के गर्ने भन्ने पात्रो।",
+                "Krishi Dristi gives municipal agriculture offices a clear view of land, crops and subsidy, and gives farmers a calendar of what to do and when.",
               )}
             </motion.p>
             <motion.div {...enter(3)} className="mt-2 flex w-full flex-wrap items-center justify-center gap-3">
@@ -161,7 +156,6 @@ export default function Landing() {
             </motion.div>
           </div>
 
-          {/* Hero photo: farmer plowing terraces with oxen, Gorkha */}
           <motion.figure
             {...(reduce ? {} : { initial: { opacity: 0, y: 32 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.35, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const } })}
             className="relative mx-auto mt-12 aspect-[16/9] w-full max-w-[1200px] overflow-hidden rounded-panel bg-fill shadow-raised md:mt-16 md:aspect-[21/9]"
@@ -189,7 +183,6 @@ export default function Landing() {
           </motion.figure>
         </section>
 
-        {/* Numbers */}
         <section aria-label={tr("अंकमा", "In numbers")} className="border-y border-line bg-white px-4 py-8 md:px-8 md:py-10">
           <dl className="mx-auto grid max-w-[1200px] grid-cols-2 gap-y-6 md:grid-cols-4">
             {facts.map((f, i) => (
@@ -210,7 +203,6 @@ export default function Landing() {
           </p>
         </section>
 
-        {/* What it does */}
         <Section id="features" className="bg-page" inner="gap-10 md:gap-14">
           <div data-reveal>
           <SectionHead
@@ -230,7 +222,6 @@ export default function Landing() {
           </div>
         </Section>
 
-        {/* How it works */}
         <Section id="how" className="bg-white" inner="gap-10 md:gap-14">
           <div data-reveal>
             <SectionHead eyebrow={tr("कसरी काम गर्छ", "How it works")} title={tr("दर्तादेखि योजनासम्म, चार चरणमा", "From registry to plan in four steps")} />
@@ -249,7 +240,6 @@ export default function Landing() {
           </ol>
         </Section>
 
-        {/* For farmers: photo-led */}
         <Section className="bg-page" inner="gap-10">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div data-reveal className="relative aspect-[4/3] overflow-hidden rounded-panel bg-fill shadow-card">
@@ -289,7 +279,6 @@ export default function Landing() {
           </div>
         </Section>
 
-        {/* Sign in */}
         <section id="signin" className="relative isolate overflow-hidden bg-brand-800 px-4 py-14 md:px-8 md:py-[88px]">
           <div aria-hidden className="absolute inset-0 -z-10">
             <div data-parallax="0.2" className="absolute inset-x-0 -inset-y-[12%]">
@@ -326,7 +315,6 @@ export default function Landing() {
         </section>
       </main>
 
-      {/* Farmer app */}
       <section id="farmer-app" aria-label={tr("किसानका लागि एप", "App for farmers")} className="border-t border-line bg-page px-4 py-14 md:px-8 md:py-20">
         <div data-reveal className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-8 rounded-panel bg-accent p-6 shadow-raised md:flex-row md:p-10">
           <div className="flex items-center gap-5">
@@ -334,7 +322,7 @@ export default function Landing() {
               <Image src="/logo.png" alt="" width={72} height={72} className="size-14 md:size-[72px]" />
             </span>
             <div className="flex flex-col gap-1">
-              <h2 className="font-heading text-h2 text-ink md:text-h1">{tr("किसानका लागि सजग किसान एप", "The Sajag Kishan app for farmers")}</h2>
+              <h2 className="font-heading text-h2 text-ink md:text-h1">{tr("किसानका लागि कृषि दृष्टि एप", "The Krishi Dristi app for farmers")}</h2>
               <p className="text-lead text-ink/80">{tr("पात्रो, मौसम सूचना र अलार्म, आफ्नै भाषामा, एन्ड्रोइड फोनमा।", "Calendar, weather alerts and reminders, in Nepali, on Android phones.")}</p>
             </div>
           </div>
@@ -390,7 +378,7 @@ export default function Landing() {
         </div>
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 border-t border-line py-6">
           <p className="text-small text-muted">
-            © {new Date().getFullYear()} {tr("सजग किसान", "Sajag Kishan")}. {tr("नेपालका किसानका लागि बनाइएको।", "Made for Nepal's farmers.")}
+            © {new Date().getFullYear()} {tr("कृषि दृष्टि", "Krishi Dristi")}. {tr("नेपालका किसानका लागि बनाइएको।", "Made for Nepal's farmers.")}
           </p>
           <LangToggle />
         </div>
@@ -399,7 +387,6 @@ export default function Landing() {
   );
 }
 
-/** Google Play button. Links to the listing once NEXT_PUBLIC_PLAY_STORE_URL is set; until then says "coming soon". */
 function PlayButton() {
   const { tr } = useLang();
   const url = process.env.NEXT_PUBLIC_PLAY_STORE_URL;

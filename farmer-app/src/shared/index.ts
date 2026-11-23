@@ -1,13 +1,6 @@
 export * from "./land-units";
 export * from "./validation";
 
-/**
- * Three roles only:
- * - FARMER: own profile, parcels, declarations, calendar, alerts.
- * - AGRICULTURE_OFFICER: the agriculture section of one local level (palika);
- *   sees and manages farmers in that local level.
- * - SUPER_ADMIN: everything, everywhere; manages officer accounts.
- */
 export const ROLES = ["FARMER", "AGRICULTURE_OFFICER", "SUPER_ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
 

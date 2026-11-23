@@ -1,8 +1,7 @@
-/** The farmer app's single API client. Auth comes from the Better Auth session cookie. */
 import { API_URL, authHeaders } from "./auth-client";
+import { markAllStale } from "./data-cache";
 import { showToast } from "./toast";
 
-/** fetch that turns "no reply" into a readable error and shows it as a toast. */
 async function send(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${API_URL}${path}`, init);
@@ -16,7 +15,6 @@ async function send(path: string, init: RequestInit): Promise<Response> {
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await send(path, {
     ...init,
-    // The cookie is sent explicitly from SecureStore; don't let fetch add or drop cookies.
     credentials: "omit",
     headers: {
       "content-type": "application/json",
@@ -30,10 +28,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     showToast(`${path.split("?")[0]}: ${msg}`);
     throw new Error(msg);
   }
+  if (init?.method && init.method !== "GET") markAllStale();
   return res.json() as Promise<T>;
 }
 
-/** Multipart upload (React Native fills in the multipart boundary). */
 export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   const res = await send(path, { method: "POST", body: form, credentials: "omit", headers: await authHeaders() });
   if (!res.ok) {
@@ -42,5 +40,18 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
     showToast(`${path}: ${msg}`);
     throw new Error(msg);
   }
+  markAllStale();
   return res.json() as Promise<T>;
+}
+
+export async function apiQuiet(path: string, body: unknown): Promise<void> {
+  try {
+    await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify(body),
+    });
+  } catch {
+  }
 }

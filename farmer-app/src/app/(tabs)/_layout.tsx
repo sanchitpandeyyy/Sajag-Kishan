@@ -1,10 +1,10 @@
-/** Bottom tabs: five plain destinations with large labels, in the farmer's language. */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { useEffect } from "react";
 import { useLang } from "@/lib/i18n";
+import { prefetchTabs } from "@/lib/use-data";
 import { registerForPush } from "@/lib/push";
 import { theme } from "@/theme";
 
@@ -12,11 +12,11 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function TabsLayout() {
   const { tr } = useLang();
-  // Tapping a reminder opens the screen it is about (calendar or alerts).
   const response = Notifications.useLastNotificationResponse();
-  // Register this phone for remote alert pushes once the farmer is signed in.
   useEffect(() => {
-    void registerForPush();
+    prefetchTabs();
+    const t = setTimeout(() => void registerForPush(), 3000); // keep push setup off the startup path
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => {
     const screen = response?.notification.request.content.data?.screen;

@@ -4,6 +4,7 @@ import { Field, Message, PrimaryButton } from "@/components/form";
 import { API_URL, authClient, useSession } from "@/lib/auth-client";
 import { useLang } from "@/lib/i18n";
 import { showToast } from "@/lib/toast";
+import { clearDataCache } from "@/lib/data-cache";
 
 export default function SignIn() {
   const { tr } = useLang();
@@ -17,9 +18,9 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
+      clearDataCache();
       const { error } = await authClient.signIn.phoneNumber({ phoneNumber: mobile.trim(), password, rememberMe: true });
       if (!error) {
-        // Re-read the session so the root layout's guard opens the app right away.
         await refetch();
         return;
       }
@@ -32,7 +33,6 @@ export default function SignIn() {
       else if (error.status === 429) fail(tr("धेरै प्रयास भयो। एक मिनेट पर्खनुहोस्।", "Too many tries. Wait one minute."));
       else fail(`${tr("लगइन हुन सकेन", "Could not sign in")} (${error.status || "?"} ${error.code ?? error.message ?? ""})`);
     } catch (e) {
-      // No reply from the server at all: wrong Wi-Fi, backend off, or firewall.
       const text = `${tr("सर्भरमा पुगेन", "Cannot reach the server")}: ${API_URL}`;
       console.warn("sign-in network error", e);
       setError(text);

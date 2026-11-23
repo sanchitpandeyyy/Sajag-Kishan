@@ -30,7 +30,6 @@ export const CROP_COLORS: Record<string, string> = {
   millet: "#6B8E23",
 };
 
-/** English crop names (Nepali names come from the API). */
 export const CROP_EN: Record<string, string> = {
   paddy: "Paddy",
   wheat: "Wheat",

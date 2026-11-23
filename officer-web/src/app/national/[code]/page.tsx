@@ -14,7 +14,6 @@ import { NATIONAL_SOURCE, TREND_DAYS } from "@/lib/national-data";
 import { PROVINCE_DETAIL } from "@/lib/national-provinces";
 import { DISTRICT_SHAPES } from "@/lib/nepal-districts-map";
 
-/** A figure the source hides for areas with fewer than 5 households. */
 function Cell({ v, digits = 0, suffix = "" }: { v: number | null; digits?: number; suffix?: string }) {
   const { tr, num } = useLang();
   return <td className={v == null ? "text-muted" : undefined}>{v == null ? tr("<५", "<5") : `${num(v, digits)}${suffix}`}</td>;

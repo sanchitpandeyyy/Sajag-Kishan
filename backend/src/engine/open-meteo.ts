@@ -1,7 +1,3 @@
-/**
- * Open-Meteo client (free, no API key, non-commercial use).
- * https://open-meteo.com/en/docs
- */
 import type { DailyForecast, HourlyForecast } from "./weather-alerts";
 
 const BASE = "https://api.open-meteo.com/v1";

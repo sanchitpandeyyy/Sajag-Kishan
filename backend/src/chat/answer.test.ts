@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { answer, detectIntent } from "./answer";
+import { answer, detectIntent, isNepali } from "./answer";
 import { compactJson, factsFor, type FarmerChatContext } from "./context";
 import { areaNe, landSystemFor, plantOptions, summarizeAlerts, unitSystemAsked, type AlertFact } from "./facts";
 import { retrieve } from "./knowledge";
@@ -183,5 +183,15 @@ describe("plant options", () => {
   it("summarises alerts for the farmer's crops", () => {
     const s = summarizeAlerts([frost, { ...frost, titleNe: "पुरानो", active: false }], ["wheat"]);
     expect(s).toMatchObject({ active: 1, severe: 1, forMyCrops: ["शीतलहरको चेतावनी"] });
+  });
+});
+
+describe("Nepali answer check", () => {
+  it("accepts Devanagari with a few Latin words and rejects English or romanised text", () => {
+    expect(isNepali("भोलि पानी पर्ने सम्भावना छ, मल हाल्न पर्खनुहोस्।")).toBe(true);
+    expect(isNepali("तपाईंको खेतमा १० केजी युरिया र ५ केजी DAP हाल्नुहोस्।")).toBe(true);
+    expect(isNepali("Tomorrow it will rain, so wait before applying fertilizer.")).toBe(false);
+    expect(isNepali("Bholi pani parne chha, mal nahalnus.")).toBe(false);
+    expect(isNepali("")).toBe(false);
   });
 });

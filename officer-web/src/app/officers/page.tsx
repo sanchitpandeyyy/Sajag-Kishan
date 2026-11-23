@@ -20,7 +20,6 @@ interface LocalLevel {
   nameEn: string;
 }
 
-/** Super admin: agriculture-officer accounts. */
 export default function OfficersPage() {
   const { tr } = useLang();
   const { data: me } = useMe();

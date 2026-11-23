@@ -1,4 +1,5 @@
 import { getPrisma } from "../db";
+import { cached, MINUTE } from "../lib/cache";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -25,13 +26,15 @@ export const declarationRoutes = new Hono<AppEnv>()
   .use("*", refreshFarmerContext)
   .get("/", async (c) => {
     const user = c.get("user");
-    const where = user.role === "FARMER" ? { farmerId: await farmerIdFor(user) } : { parcel: { ward: await wardScope(user) } };
     return c.json(
-      await getPrisma().seasonDeclaration.findMany({
-        where,
-        include: { crop: { select: { code: true, nameNe: true } }, inputs: true },
-        orderBy: { createdAt: "desc" },
-        take: 500,
+      await cached(`declarations:${user.id}`, MINUTE, async () => {
+        const where = user.role === "FARMER" ? { farmerId: await farmerIdFor(user) } : { parcel: { ward: await wardScope(user) } };
+        return getPrisma().seasonDeclaration.findMany({
+          where,
+          include: { crop: { select: { code: true, nameNe: true } }, inputs: true },
+          orderBy: { createdAt: "desc" },
+          take: 500,
+        });
       }),
     );
   })

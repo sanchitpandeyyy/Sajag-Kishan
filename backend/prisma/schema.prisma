@@ -1,6 +1,3 @@
-// KrishiDristi data model — see docs/03-technical-implementation.md §4
-// Prisma 7: the connection URL lives in prisma.config.ts, the runtime uses @prisma/adapter-neon.
-
 generator client {
   provider = "prisma-client"
   output   = "../src/db/generated/prisma"
@@ -9,8 +6,6 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-
-// ───────────────────────── Enums ─────────────────────────
 
 enum Gender {
   MALE
@@ -96,8 +91,6 @@ enum CalendarTask {
   STORAGE
 }
 
-// ───────────────────── Administrative hierarchy ─────────────────────
-
 model Province {
   id        Int        @id
   nameNe    String
@@ -137,7 +130,6 @@ model Ward {
   centroidLat  Float?
   centroidLng  Float?
   elevationM   Float?
-  /// GeoJSON Polygon/MultiPolygon (EPSG:4326)
   boundary     Json?
 
   parcels              Parcel[]
@@ -146,40 +138,30 @@ model Ward {
   alerts               Alert[]
   advisories           Advisory[]
   weatherSnapshots     WeatherSnapshot[]
+  climateDays          ClimateDay[]
   satelliteObservations SatelliteObservation[]
   chatQuestions        ChatQuestion[]
 
   @@unique([localLevelId, number])
 }
 
-// ───────────────────────── Identity ─────────────────────────
-
-// User / Session / Account / Verification follow the Better Auth schema
-// (core + phoneNumber + admin plugins). Field names must match Better Auth exactly.
-// Login is by mobile number (`phoneNumber`); `email` is a generated placeholder
-// because Better Auth requires one. Passwords live in Account (providerId "credential").
-
 model User {
   id                  String          @id
   name                String
-  /// Placeholder `<mobile>@phone.krishidristi.np` — farmers log in by phone.
   email               String          @unique
   emailVerified       Boolean         @default(false)
   image               String?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
-  // phoneNumber plugin
   phoneNumber         String?         @unique
   phoneNumberVerified Boolean?        @default(false)
 
-  // admin plugin — one of the roles in src/lib/permissions.ts
   role                String?         @default("FARMER")
   banned              Boolean?        @default(false)
   banReason           String?
   banExpires          DateTime?
 
-  /// Set when an officer issues a temporary password; cleared after /change-password.
   mustChangePassword  Boolean         @default(false)
 
   sessions            Session[]
@@ -204,7 +186,6 @@ model Session {
   userAgent      String?
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // admin plugin
   impersonatedBy String?
 
   @@index([userId])
@@ -223,7 +204,6 @@ model Account {
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
   scope                 String?
-  /// Password hash for providerId = "credential"
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -250,7 +230,6 @@ model OfficerProfile {
   user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName     String
   designation  String?
-  /// The local level (palika) whose agriculture section this officer runs.
   localLevelId Int
   localLevel   LocalLevel @relation(fields: [localLevelId], references: [id])
   advisories   Advisory[]
@@ -261,7 +240,6 @@ model Farmer {
   id                     String     @id @default(cuid())
   userId                 String     @unique
   user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// ID in the government registry, when imported.
   externalRegistryId     String?    @unique
   source                 DataSource @default(REGISTRY)
 
@@ -284,7 +262,6 @@ model Farmer {
   farmingWard            Ward       @relation("FarmingWard", fields: [farmingWardId], references: [id])
   farmingTole            String
 
-  /// Sensitive: masked in UI, never exported.
   citizenshipNo          String
   citizenshipDistrictId  Int
   nationalId             String?
@@ -303,8 +280,6 @@ model Farmer {
   @@index([farmingWardId])
 }
 
-// ───────────────────────── Land ─────────────────────────
-
 model Parcel {
   id               String            @id @default(cuid())
   farmerId         String
@@ -313,28 +288,30 @@ model Parcel {
   ward             Ward              @relation(fields: [wardId], references: [id])
   tole             String
   localName        String?
-  /// Cadastral parcel number (कित्ता नं.) from the land certificate.
   kittaNo          String?
   mapSheetNo       String?
 
   areaM2           Float
-  /// Original entry, e.g. {"bigha":1,"kattha":5}
   areaOriginal     Json?
   ownershipType    OwnershipType     @default(OWNED)
   irrigation       IrrigationSource  @default(RAINFED)
 
-  /// GeoJSON Point or Polygon (EPSG:4326). PostGIS column can be added later.
   geometry         Json?
   centroidLat      Float?
   centroidLng      Float?
   elevationM       Float?
-  /// Terrain from Copernicus DEM GLO-30 (degrees; aspect 0 = north-facing).
   slopeDeg         Float?
   aspectDeg        Float?
-  /// ESA WorldCover class at the point (cropland, trees, built...) and cropland share of the 50 m around it.
   landCover        String?
   croplandShare    Float?
+  /// Where soilPh came from: "FIELD_TEST" (entered) or "ESTIMATED_SOILGRIDS" (global model, not measured).
   soilPh           Float?
+  soilPhSource     String?
+  /// SoilGrids 2.0 estimates (ISRIC, ~250 m, top 0-5 cm). Modelled, not measured.
+  soilOrganicC     Float?
+  soilNitrogen     Float?
+  clayPct          Float?
+  soilEstimatedAt  DateTime?
 
   source           DataSource        @default(REGISTRY)
   verification     VerificationStatus @default(UNVERIFIED)
@@ -353,17 +330,13 @@ model Parcel {
   @@index([kittaNo])
 }
 
-// ───────────────────────── Crops & seasons ─────────────────────────
-
 model Crop {
   id            String      @id @default(cuid())
   code          String      @unique
   nameNe        String
   nameEn        String
   category      String
-  /// EcoCrop-style parameters {temp:[...], rain:[...], soilPh:[...], gddBase, durationDays}
   params        Json
-  /// Recommended dose kg/ha {N,P,K} — expert-reviewed
   fertilizerDose Json?
   varieties     CropVariety[]
   templates     CropCalendarTemplate[]
@@ -385,7 +358,6 @@ model CropCalendarTemplate {
   crop        Crop    @relation(fields: [cropId], references: [id], onDelete: Cascade)
   zone        String
   season      Season
-  /// Ordered stages [{task, startMonthBs, startDay, durationDays, gddRequired?, noteNe}]
   stages      Json
   version     String  @default("v0")
   reviewedBy  String?
@@ -402,7 +374,7 @@ model SeasonDeclaration {
   farmer        Farmer       @relation(fields: [farmerId], references: [id], onDelete: Cascade)
   cropId        String
   crop          Crop         @relation(fields: [cropId], references: [id])
-  fiscalYearBs  String       // e.g. "2083/84"
+  fiscalYearBs  String
   season        Season
   sownAreaM2    Float
   sowingDate    DateTime?
@@ -416,6 +388,7 @@ model SeasonDeclaration {
 
   @@unique([parcelId, fiscalYearBs, season, cropId])
   @@index([fiscalYearBs, season])
+  @@index([farmerId])
 }
 
 model InputApplication {
@@ -423,13 +396,12 @@ model InputApplication {
   declarationId String
   declaration   SeasonDeclaration @relation(fields: [declarationId], references: [id], onDelete: Cascade)
   kind          InputKind
-  product       String            // e.g. "Urea", "DAP", "MOP"
+  product       String
   quantityKg    Float
   appliedAt     DateTime?
   source        DataSource        @default(FARMER)
+  @@index([declarationId])
 }
-
-// ───────────────────────── Subsidy ─────────────────────────
 
 model SubsidyScheme {
   id           String      @id @default(cuid())
@@ -437,7 +409,7 @@ model SubsidyScheme {
   kind         InputKind
   fiscalYearBs String
   localLevelId Int?
-  unit         String      // kg, piece, NPR
+  unit         String
   totalBudget  Float?
   totalStock   Float?
   criteria     Json?
@@ -463,9 +435,8 @@ model SubsidyAllocation {
   createdAt    DateTime         @default(now())
 
   @@unique([schemeId, farmerId])
+  @@index([farmerId])
 }
-
-// ───────────────────── Calendar, alerts, advisories ─────────────────────
 
 model CalendarEvent {
   id         String       @id @default(cuid())
@@ -501,6 +472,7 @@ model Alert {
   deliveries  AlertDelivery[]
 
   @@unique([wardId, type, validFrom])
+  @@index([wardId, validTo])
 }
 
 model AlertDelivery {
@@ -508,12 +480,13 @@ model AlertDelivery {
   alertId   String
   alert     Alert     @relation(fields: [alertId], references: [id], onDelete: Cascade)
   userId    String
-  channel   String    // push, in_app
+  channel   String
   sentAt    DateTime?
   readAt    DateTime?
   error     String?
 
   @@unique([alertId, userId, channel])
+  @@index([userId])
 }
 
 model Advisory {
@@ -527,6 +500,7 @@ model Advisory {
   bodyNe    String
   cropCodes String[]
   publishedAt DateTime     @default(now())
+  @@index([wardId, publishedAt])
 }
 
 model PushToken {
@@ -536,9 +510,8 @@ model PushToken {
   token     String   @unique
   platform  String
   createdAt DateTime @default(now())
+  @@index([userId])
 }
-
-// ───────────────────────── Observations ─────────────────────────
 
 model WeatherSnapshot {
   id        String   @id @default(cuid())
@@ -552,6 +525,20 @@ model WeatherSnapshot {
   @@index([wardId, fetchedAt])
 }
 
+model ClimateDay {
+  wardId         Int
+  ward           Ward     @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  precipMm       Float?
+  tempMeanC      Float?
+  tempMaxC       Float?
+  soilMoisture   Float?
+  et0Mm          Float?
+  fetchedAt      DateTime @default(now())
+
+  @@id([wardId, date])
+}
+
 model SatelliteObservation {
   id         String   @id @default(cuid())
   parcelId   String?
@@ -559,15 +546,13 @@ model SatelliteObservation {
   wardId     Int?
   ward       Ward?    @relation(fields: [wardId], references: [id])
   observedOn DateTime
-  sensor     String   // S2, S1, WorldCover
+  sensor     String
   ndvi       Float?
-  /// Red-edge vigour (B8A, B05)
   ndre       Float?
-  /// Open water (B03, B08)
   ndwi       Float?
-  /// Canopy moisture (B8A, B11)
   ndmi       Float?
-  /// Sentinel-1 backscatter, dB
+  evi        Float?
+  savi       Float?
   vvDb       Float?
   vhDb       Float?
   fallowFlag Boolean?
@@ -592,10 +577,6 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
-// ───────────────────────── Files (Neon Object Storage) ─────────────────────────
-
-/// Metadata for an object in the Neon "assets" bucket. Bytes live in the bucket; the
-/// key lives here, so rows and files branch together. Served via presigned URLs.
 model FileObject {
   id           String   @id @default(cuid())
   bucket       String   @default("assets")
@@ -603,7 +584,6 @@ model FileObject {
   fileName     String
   contentType  String
   sizeBytes    Int
-  /// What the file belongs to, e.g. "parcel" + parcel id, "registry-import" + audit id
   entity       String
   entityId     String
   uploadedById String?
@@ -613,9 +593,6 @@ model FileObject {
   @@index([entity, entityId])
 }
 
-// ───────────────────────── Farmer questions & model outputs ─────────────────────────
-
-/// A question a farmer asked the Nepali helper, kept so officers can see what worries their wards.
 model ChatQuestion {
   id           String   @id @default(cuid())
   userId       String
@@ -633,14 +610,13 @@ model ChatQuestion {
   @@index([createdAt])
 }
 
-/// Output of a trained model for one parcel (an indicator, never ground truth).
 model ModelPrediction {
   id          String   @id @default(cuid())
   parcelId    String
   parcel      Parcel   @relation(fields: [parcelId], references: [id], onDelete: Cascade)
-  model       String   // e.g. landuse
-  version     String   // model file version, or rules-v1 when the fallback ran
-  label       String   // e.g. cultivated | fallow
+  model       String
+  version     String
+  label       String
   probability Float
   features    Json
   createdAt   DateTime @default(now())

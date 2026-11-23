@@ -1,14 +1,9 @@
-/**
- * zod schemas shared by the farmer app, officer web and API.
- * Field rules mirror the government farmer-registration portal (docs/04-gov-integration.md).
- */
 import { z } from "zod";
 import { toAsciiDigits } from "./land-units";
 
 const DEVANAGARI = /^[ऀ-ॿ\s.]+$/;
 const LATIN = /^[A-Za-z\s.'-]+$/;
 
-/** 10 digits, starting with 98 / 97 / 96. Accepts Devanagari digits. */
 export const mobileSchema = z
   .string()
   .transform((s) => toAsciiDigits(s.trim()))
@@ -16,13 +11,11 @@ export const mobileSchema = z
 
 export const passwordSchema = z.string().min(8, "पासवर्ड कम्तीमा ८ अक्षर वा अङ्कको हुनुपर्छ");
 
-/** Citizenship number: slashes are normalized to dashes, as the portal requires. */
 export const citizenshipNoSchema = z
   .string()
   .transform((s) => toAsciiDigits(s.trim()).replace(/\//g, "-").replace(/\s+/g, ""))
   .pipe(z.string().regex(/^[0-9-]{3,30}$/, "नागरिकता नम्बर मिलेन"));
 
-/** Bikram Sambat date as yyyy-mm-dd. */
 export const bsDateSchema = z
   .string()
   .transform((s) => toAsciiDigits(s.trim()))
@@ -41,7 +34,6 @@ export const addressSchema = z.object({
   tole: z.string().min(1).max(120),
 });
 
-/** One farmer record as it arrives from the government registry. */
 export const registryFarmerSchema = z.object({
   externalId: z.string().optional(),
   mobile: mobileSchema,

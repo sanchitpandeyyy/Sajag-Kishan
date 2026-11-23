@@ -1,7 +1,3 @@
-/**
- * Weather and disease-risk alert rules (docs/05-engine-algorithms.md §4–5).
- * Thresholds are initial values pending expert review.
- */
 export type Severity = "INFO" | "WARNING" | "SEVERE";
 
 export type AlertType =
@@ -15,7 +11,7 @@ export type AlertType =
   | "RICE_BLAST";
 
 export interface DailyForecast {
-  date: string; // ISO yyyy-mm-dd
+  date: string;
   precipitationMm: number;
   tempMaxC: number;
   tempMinC: number;
@@ -23,7 +19,7 @@ export interface DailyForecast {
 }
 
 export interface HourlyForecast {
-  time: string; // ISO
+  time: string;
   tempC: number;
   relativeHumidity: number;
 }
@@ -34,7 +30,6 @@ export interface EngineAlert {
   date: string;
   titleNe: string;
   messageNe: string;
-  /** Values that triggered the rule, for explainability. */
   evidence: Record<string, number | string>;
   ruleVersion: string;
 }
@@ -127,7 +122,6 @@ export function evaluateWeatherAlerts(days: DailyForecast[]): EngineAlert[] {
   return alerts;
 }
 
-/** Hours per calendar day matching a predicate. */
 function hoursPerDay(hours: HourlyForecast[], pred: (h: HourlyForecast) => boolean): Map<string, { match: number; minTemp: number }> {
   const byDay = new Map<string, { match: number; minTemp: number }>();
   for (const h of hours) {
@@ -140,10 +134,6 @@ function hoursPerDay(hours: HourlyForecast[], pred: (h: HourlyForecast) => boole
   return byDay;
 }
 
-/**
- * Potato/tomato late blight: two consecutive days with Tmin ≥ 10 °C and
- * ≥ 11 h of RH ≥ 90 % (Smith-period style).
- */
 export function evaluateLateBlight(hours: HourlyForecast[]): EngineAlert[] {
   const days = [...hoursPerDay(hours, (h) => h.relativeHumidity >= 90)].sort(([a], [b]) => a.localeCompare(b));
   const alerts: EngineAlert[] = [];
@@ -166,7 +156,6 @@ export function evaluateLateBlight(hours: HourlyForecast[]): EngineAlert[] {
   return alerts;
 }
 
-/** Rice blast: night temp 20–26 °C with ≥ 10 h RH ≥ 90 % in a day. */
 export function evaluateRiceBlast(hours: HourlyForecast[]): EngineAlert[] {
   const byDay = hoursPerDay(hours, (h) => h.relativeHumidity >= 90 && h.tempC >= 20 && h.tempC <= 26);
   return [...byDay]

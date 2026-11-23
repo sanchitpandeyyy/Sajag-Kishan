@@ -1,6 +1,5 @@
 "use client";
 
-/** Satellite tools for officers: background sync with progress, and a field's satellite check (Sentinel-2 indices, Sentinel-1 radar, terrain, land-use model). */
 import { Satellite } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SecondaryButton } from "@/components/shell";
@@ -18,7 +17,6 @@ interface SyncStatus {
   errors: { parcelId: string; error: string }[];
 }
 
-/** Start a sync for mapped fields in scope and show progress until it finishes. */
 export function SatelliteSync({ onDone }: { onDone?: () => void }) {
   const { tr, num } = useLang();
   const [status, setStatus] = useState<SyncStatus | null>(null);
@@ -119,11 +117,6 @@ const classFor = (classes: NdviClass[], v: number) => classes.reduce((found, c) 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const COMPASS_NE = ["उत्तर", "उत्तर-पूर्व", "पूर्व", "दक्षिण-पूर्व", "दक्षिण", "दक्षिण-पश्चिम", "पश्चिम", "उत्तर-पश्चिम"];
 
-/**
- * Everything the satellites say about one field: NDVI on the 0 to 0.9+ scale, the other optical
- * indices (NDRE, NDWI, NDMI), radar (soil wetness and crop cycle through cloud), terrain, and the
- * land-use model's verdict. All are indicators for the officer, not proof.
- */
 export function FieldGreenness({ parcelId }: { parcelId: string }) {
   const { tr, num, lang } = useLang();
   const { data } = useApi<FieldSatelliteData>(`/v1/satellite/parcels/${parcelId}`);

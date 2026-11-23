@@ -1,7 +1,3 @@
-/**
- * My fields: one summary card, then one card per field (title and status, land and crop,
- * one main action and two secondary ones), then subsidy. Same heading and strip style as Alerts.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -13,7 +9,7 @@ import { currentSeason, landText } from "@/lib/farm";
 import { CROP_EN, useLang } from "@/lib/i18n";
 import { saveFieldLocation } from "@/lib/location";
 import { takeFieldPhoto } from "@/lib/photo";
-import { useData, type Allocation, type Parcel } from "@/lib/use-data";
+import { useData, type Allocation, type OpenScheme, type Parcel } from "@/lib/use-data";
 import { theme } from "@/theme";
 
 const c = theme.colors;
@@ -22,6 +18,7 @@ export default function FieldsTab() {
   const { tr, num, lang } = useLang();
   const parcels = useData<Parcel[]>("/v1/parcels");
   const subsidy = useData<Allocation[]>("/v1/subsidies/mine");
+  const openSchemes = useData<OpenScheme[]>("/v1/subsidies/open");
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [locating, setLocating] = useState<string | null>(null);
   const [shooting, setShooting] = useState<string | null>(null);
@@ -75,7 +72,6 @@ export default function FieldsTab() {
       {parcels.loading && !parcels.data ? <Loading /> : null}
       {parcels.error ? <ErrorText>{parcels.error}</ErrorText> : null}
 
-      {/* Summary: one card, three equal columns */}
       {list.length > 0 ? (
         <View style={styles.summary}>
           <SummaryCell icon="map" value={num(list.length)} label={tr("खेत", "Fields")} />
@@ -105,7 +101,6 @@ export default function FieldsTab() {
         const note = notes[p.id];
         return (
           <Card key={p.id}>
-            {/* Title row: what it is, where it is, its status */}
             <View style={styles.head}>
               <IconTile name="map" size={48} />
               <View style={styles.headText}>
@@ -127,14 +122,12 @@ export default function FieldsTab() {
               </View>
             </View>
 
-            {/* Facts: two equal columns, label above value */}
             <View style={styles.facts}>
               <Fact icon="resize-outline" label={tr("जग्गा", "Land")} value={landText(p.areaOriginal, p.areaM2, lang, num)} />
               <View style={styles.factDivider} />
               <Fact icon="leaf-outline" label={tr("यो मौसमको बाली", "This season")} value={cropName ?? tr("छानिएको छैन", "Not chosen")} muted={!cropName} />
             </View>
 
-            {/* Actions: one main button, two smaller ones */}
             <Pressable
               onPress={() => setPickerFor(p.id)}
               accessibilityRole="button"
@@ -158,7 +151,6 @@ export default function FieldsTab() {
         );
       })}
 
-      {/* Subsidy */}
       <Pressable onPress={() => router.push("/subsidy")} accessibilityRole="button" style={styles.sectionRow}>
         <Text style={styles.section}>{tr("अनुदान", "Subsidy")}</Text>
         <View style={styles.seeAll}>
@@ -170,7 +162,11 @@ export default function FieldsTab() {
         {subsidy.data?.length === 0 ? (
           <View style={styles.subEmpty}>
             <Ionicons name="gift-outline" size={28} color={c.inkMuted} />
-            <Text style={styles.subEmptyText}>{tr("अहिलेसम्म अनुदान छैन", "No subsidy yet")}</Text>
+            <Text style={styles.subEmptyText}>
+              {openSchemes.data?.length
+                ? tr(`अहिलेसम्म अनुदान छैन। पालिकामा ${num(openSchemes.data.length)} कार्यक्रम खुला छ।`, `No subsidy yet. ${openSchemes.data.length} programmes open in your municipality.`)
+                : tr("अहिलेसम्म अनुदान छैन", "No subsidy yet")}
+            </Text>
           </View>
         ) : null}
         {subsidy.data?.map((a, i) => {

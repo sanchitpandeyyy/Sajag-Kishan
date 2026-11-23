@@ -1,7 +1,3 @@
-/**
- * Farmer app UI kit. Same design system as the web (white cards on a neutral page,
- * logo greens, sun gold for the one main action). Large text and 56pt touch targets.
- */
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
@@ -11,7 +7,6 @@ import { theme } from "@/theme";
 
 const c = theme.colors;
 
-/** Page frame: neutral background, safe area, pull-to-refresh, consistent gutters. */
 export function Screen({
   title,
   subtitle,
@@ -22,7 +17,6 @@ export function Screen({
 }: {
   title: string;
   subtitle?: string;
-  /** Small item on the title line, right-aligned (for example today's date). */
   headerRight?: React.ReactNode;
   children: React.ReactNode;
   refreshing?: boolean;
@@ -50,14 +44,13 @@ export function Screen({
   );
 }
 
-/** Small brand row used at the top of Home. */
 export function BrandRow({ right }: { right?: React.ReactNode }) {
   const { tr } = useLang();
   return (
     <View style={styles.brandRow}>
       <View style={styles.brandLeft}>
         <Image source={require("../../assets/icon.png")} style={styles.brandLogo} resizeMode="contain" />
-        <Text style={styles.brandName}>{tr("कृषि दृष्टि", "Krishi Drishti")}</Text>
+        <Text style={styles.brandName}>{tr("कृषि दृष्टि", "Krishi Dristi")}</Text>
       </View>
       <View style={styles.brandRight}>
         {right}
@@ -71,7 +64,6 @@ export function BrandRow({ right }: { right?: React.ReactNode }) {
 
 export type IconName = keyof typeof Ionicons.glyphMap;
 
-/** Neutral rounded square holding one icon. Farmers scan icons faster than words. */
 export function IconTile({ name, size = 44, color = c.brand[800] }: { name: IconName; size?: number; color?: string }) {
   return (
     <View style={{ width: size, height: size, borderRadius: theme.radii.md, backgroundColor: c.fill, alignItems: "center", justifyContent: "center" }}>
@@ -147,7 +139,6 @@ export function TextLink({ title, onPress }: { title: string; onPress: () => voi
   );
 }
 
-/** One line in a list: label on the left, value on the right, divider below. */
 export function Row({ label, value, sub, last, icon }: { label: string; value?: string; sub?: string; last?: boolean; icon?: IconName }) {
   return (
     <View style={[styles.row, !last && styles.rowDivider]}>
@@ -181,7 +172,6 @@ export function ErrorText({ children }: { children: React.ReactNode }) {
   return <Text style={styles.error}>{children}</Text>;
 }
 
-/** Nepali / English switch. */
 export function LangSwitch() {
   const { lang, setLang } = useLang();
   return (

@@ -1,6 +1,6 @@
 # Backend
 
-Server-side component of **Sajag Kishan** (Team CSITABMC). It exposes the APIs consumed by [farmer-app](../farmer-app) and [officer-web](../officer-web) and manages data storage.
+Server-side component of **Krishi Dristi** (Team CSITABMC). It exposes the APIs consumed by [farmer-app](../farmer-app) and [officer-web](../officer-web) and manages data storage.
 
 ## Responsibilities
 

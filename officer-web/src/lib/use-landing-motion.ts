@@ -1,26 +1,17 @@
 "use client";
 
-/**
- * Scroll effects for the landing page (GSAP + ScrollTrigger). Subtle by design:
- * short distances, quick eases, nothing loops. Disabled for prefers-reduced-motion.
- *
- * Markup hooks (data attributes inside the scope element):
- *   data-reveal              fade up once when it enters the viewport
- *   data-stagger             its direct children fade up one after another
- *   data-parallax="0.12"     drifts slower than the page while in view (fraction of its height)
- *   data-count="753"         number counts up from 0 when it enters the viewport
- *   data-scale-in            image settles from 1.06 to 1 as it scrolls into view
- */
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import type { RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 
-gsap.registerPlugin(useGSAP, ScrollTrigger);
-
+// gsap is only needed by the landing page, so load it after first paint instead of in the page bundle.
 export function useLandingMotion(scope: RefObject<HTMLElement | null>, formatNumber: (n: number) => string, deps: unknown[] = []) {
-  useGSAP(
-    () => {
+  useEffect(() => {
+    let cancelled = false;
+    let revert: (() => void) | undefined;
+
+    void Promise.all([import("gsap"), import("gsap/ScrollTrigger")]).then(([{ default: gsap }, { ScrollTrigger }]) => {
+      if (cancelled || !scope.current) return;
+      gsap.registerPlugin(ScrollTrigger);
+      const ctx = gsap.context(() => {
       const mm = gsap.matchMedia();
 
       mm.add("(prefers-reduced-motion: no-preference)", () => {
@@ -81,9 +72,14 @@ export function useLandingMotion(scope: RefObject<HTMLElement | null>, formatNum
           });
         });
       });
+      }, scope.current);
+      revert = () => ctx.revert();
+    });
 
-      return () => mm.revert();
-    },
-    { scope, dependencies: deps, revertOnUpdate: true },
-  );
+    return () => {
+      cancelled = true;
+      revert?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 }

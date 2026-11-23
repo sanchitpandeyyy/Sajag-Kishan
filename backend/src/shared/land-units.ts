@@ -1,8 +1,3 @@
-/**
- * Nepali land units → square metres.
- * Terai: bigha / kattha / dhur. Hills: ropani / aana / paisa / daam.
- * Areas are always stored in m² (see docs/02-data-strategy.md §6).
- */
 export const LAND_UNIT_M2 = {
   bigha: 6772.63,
   kattha: 338.63,
@@ -31,7 +26,6 @@ export const LAND_UNIT_LABEL_NE: Record<LandUnit, string> = {
 
 export type LandSystem = "terai" | "hill";
 
-/** Area in a compound local measure, e.g. 2 bigha 5 kattha 3 dhur. */
 export type CompoundArea = Partial<Record<LandUnit, number>>;
 
 export function toSquareMetres(area: CompoundArea): number {
@@ -50,7 +44,6 @@ export function toHectares(m2: number): number {
   return m2 / LAND_UNIT_M2.hectare;
 }
 
-/** Break m² back into the local system for display (largest units first). */
 export function fromSquareMetres(m2: number, system: LandSystem): CompoundArea {
   const units: LandUnit[] =
     system === "terai" ? ["bigha", "kattha", "dhur"] : ["ropani", "aana", "paisa", "daam"];

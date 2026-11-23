@@ -1,4 +1,5 @@
 import { getPrisma } from "../db";
+import { cached, MINUTE } from "../lib/cache";
 import { fetchElevation } from "../engine";
 import { geoPointSchema, toSquareMetres } from "../shared";
 import { zValidator } from "@hono/zod-validator";
@@ -42,18 +43,21 @@ export const parcelRoutes = new Hono<AppEnv>()
   .get("/", async (c) => {
     const user = c.get("user");
     const prisma = getPrisma();
-    const where = user.role === "FARMER" ? { farmerId: await farmerIdFor(user) } : { ward: await wardScope(user) };
-    const parcels = await prisma.parcel.findMany({
-      where,
-      include: {
-        ward: { select: { number: true, localLevel: { select: { nameNe: true } } } },
-        declarations: { orderBy: { createdAt: "desc" }, take: 3, include: { crop: { select: { code: true, nameNe: true } } } },
-        farmer: user.role === "FARMER" ? false : { select: { firstNameNe: true, lastNameNe: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-    });
-    return c.json(parcels);
+    return c.json(
+      await cached(`parcels:${user.id}`, MINUTE, async () => {
+        const where = user.role === "FARMER" ? { farmerId: await farmerIdFor(user) } : { ward: await wardScope(user) };
+        return prisma.parcel.findMany({
+          where,
+          include: {
+            ward: { select: { number: true, localLevel: { select: { nameNe: true } } } },
+            declarations: { orderBy: { createdAt: "desc" }, take: 3, include: { crop: { select: { code: true, nameNe: true } } } },
+            farmer: user.role === "FARMER" ? false : { select: { firstNameNe: true, lastNameNe: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 500,
+        });
+      }),
+    );
   })
   .post("/", requireRole("FARMER", ...OFFICER_ROLES), zValidator("json", createParcelSchema), async (c) => {
     const user = c.get("user");
@@ -103,10 +107,6 @@ export const parcelRoutes = new Hono<AppEnv>()
       return c.json(updated);
     },
   )
-  /**
-   * Set a field's location from the phone's GPS (farmer: own fields; officer: fields in scope).
-   * A farmer moving a field resets verification, since the officer verified the old spot.
-   */
   .patch(
     "/:id/location",
     zValidator("json", geoPointSchema.extend({ accuracyM: z.number().nonnegative().max(5000).optional() })),

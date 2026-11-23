@@ -3,6 +3,7 @@ import { demandByProduct, summarizeLand, type FarmerNeedInput, type ParcelFact }
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { cached, MINUTE } from "../lib/cache";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { currentFiscalYearBs, currentSeason, narrow, wardScope } from "../scope";
 import type { AppEnv } from "../types";
@@ -14,15 +15,13 @@ const scopeQuery = z.object({
   season: z.enum(["BARSHE", "HIUDE", "CHAITE"]).optional(),
 });
 
-/** true = greened this season, false = 3+ clear readings and never green, null = not enough data. */
 function satelliteGreen(ndvi: (number | null)[]): boolean | null {
   const v = ndvi.filter((x): x is number => x != null);
   if (v.some((x) => x >= 0.4)) return true;
   return v.length >= 3 ? false : null;
 }
 
-/** Loads parcels + this season's declarations for the officer's scope. */
-async function loadScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) {
+async function queryScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) {
   const fiscalYearBs = q.fiscalYearBs ?? currentFiscalYearBs();
   const season = q.season ?? currentSeason();
   const parcels = await getPrisma().parcel.findMany({
@@ -30,13 +29,14 @@ async function loadScope(user: Parameters<typeof wardScope>[0], q: z.infer<typeo
     include: {
       ward: { select: { id: true, number: true } },
       declarations: { where: { fiscalYearBs, season }, include: { crop: { select: { code: true, nameNe: true } }, inputs: true } },
-      // Sentinel-2 readings from the last 120 days (see src/satellite).
       observations: { where: { sensor: "S2", observedOn: { gte: new Date(Date.now() - 120 * 86_400_000) } }, select: { ndvi: true } },
       farmer: { select: { id: true, firstNameNe: true, lastNameNe: true, allocations: { where: { status: "DELIVERED", scheme: { kind: "FERTILIZER" } }, select: { id: true } } } },
     },
   });
   return { parcels, fiscalYearBs, season };
 }
+
+const loadScope = (user: Parameters<typeof wardScope>[0], q: z.infer<typeof scopeQuery>) => cached(`map:${user.id}:${JSON.stringify(q)}`, 2 * MINUTE, () => queryScope(user, q));
 
 export const mapRoutes = new Hono<AppEnv>()
   .use("*", requireAuth, requireRole(...OFFICER_ROLES))
@@ -60,7 +60,6 @@ export const mapRoutes = new Hono<AppEnv>()
 
     const cropNames = new Map(parcels.flatMap((p) => p.declarations.map((d) => [d.crop.code, d.crop.nameNe] as const)));
 
-    // Fertilizer demand for the scope (declared cultivated area × dose).
     const needInputs: FarmerNeedInput[] = parcels.map((p) => ({
       farmerId: p.farmerId,
       registeredAreaM2: p.areaM2,

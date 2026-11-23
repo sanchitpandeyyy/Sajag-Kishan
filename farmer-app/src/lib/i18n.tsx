@@ -1,7 +1,3 @@
-/**
- * Nepali / English for the farmer app. Nepali is the default; the choice is saved on the phone.
- * Strings stay next to the UI as pairs: tr("गृह", "Home").
- */
 import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
@@ -54,7 +50,6 @@ export function useLang(): LangValue {
   return v;
 }
 
-/** Crop names in English (Nepali comes from the API). */
 export const CROP_EN: Record<string, string> = {
   paddy: "Paddy",
   wheat: "Wheat",

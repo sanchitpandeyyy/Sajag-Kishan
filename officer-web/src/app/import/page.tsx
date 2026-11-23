@@ -17,7 +17,6 @@ interface ImportReport {
   archivedKey: string | null;
 }
 
-/** Columns read by backend/src/integrations/registry.ts (CsvRegistryAdapter). */
 const COLUMNS = [
   "externalId",
   "mobile",
@@ -92,7 +91,7 @@ export default function ImportPage() {
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "sajag-kishan-registry-template.csv";
+    a.download = "krishi-dristi-registry-template.csv";
     a.click();
     URL.revokeObjectURL(url);
   }

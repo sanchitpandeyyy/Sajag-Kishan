@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * Nepali / English for the officer web app.
- * Strings stay next to the UI as pairs: `tr("ड्यासबोर्ड", "Dashboard")`.
- * Nepali is the default; the choice is remembered per browser.
- */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type Lang = "ne" | "en";
@@ -15,7 +10,6 @@ interface LangContextValue {
   lang: Lang;
   setLang: (l: Lang) => void;
   tr: (ne: string, en: string) => string;
-  /** Number formatting in the active language (Devanagari digits for Nepali). */
   num: (n: number, maxFractionDigits?: number) => string;
 }
 
@@ -29,7 +23,6 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved === "en" || saved === "ne") setLangState(saved);
     } catch {
-      /* storage unavailable: keep Nepali */
     }
   }, []);
 
@@ -42,7 +35,6 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     try {
       window.localStorage.setItem(STORAGE_KEY, l);
     } catch {
-      /* ignore */
     }
   }, []);
 
@@ -52,8 +44,6 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
       setLang,
       tr: (ne, en) => (lang === "ne" ? ne : en),
       num: (n, maxFractionDigits = 2) => {
-        // Format with one fixed locale, then map digits ourselves: Intl's Devanagari
-        // numbering differs between Node and browsers, which breaks hydration.
         const s = n.toLocaleString("en-IN", { maximumFractionDigits: maxFractionDigits });
         return lang === "ne" ? s.replace(/[0-9]/g, (d) => DEVANAGARI_DIGITS[Number(d)]!) : s;
       },
@@ -70,7 +60,6 @@ export function useLang(): LangContextValue {
   return ctx;
 }
 
-/** NP | EN pill switch with a sliding thumb. `tone="dark"` for use on green backgrounds. */
 export function LangToggle({ tone = "light" }: { tone?: "light" | "dark" }) {
   const { lang, setLang } = useLang();
   const dark = tone === "dark";
@@ -108,7 +97,6 @@ export function LangToggle({ tone = "light" }: { tone?: "light" | "dark" }) {
   );
 }
 
-/** Labels shared by several pages. */
 export const SEASON_LABEL = {
   BARSHE: ["बर्खे", "Monsoon"],
   HIUDE: ["हिउँदे", "Winter"],

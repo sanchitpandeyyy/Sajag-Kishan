@@ -1,4 +1,3 @@
-/** Re-run the land-use model for every field with satellite readings: npx tsx src/ml/predict-all.ts */
 import { getPrisma } from "../db";
 import { predictParcel } from "./jobs";
 
