@@ -4,7 +4,7 @@ export function geminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-const model = () => process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const model = () => process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 
 type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
 
