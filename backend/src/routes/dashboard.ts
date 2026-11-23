@@ -1,11 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
+import { measuredAreaM2 } from "../geo/field";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { OFFICER_ROLES, requireAuth, requireRole } from "../auth";
 import { getPrisma } from "../db";
 import { cached, MINUTE } from "../lib/cache";
-import { officerProfileLevel } from "../scope";
+import { currentFiscalYearBs, currentSeason, officerProfileLevel } from "../scope";
 import {
   fieldFlags,
   FLAG_WEIGHT,
@@ -19,6 +20,8 @@ import {
   type FieldStatus,
   type Productivity,
 } from "../engine/land-transparency";
+import { seasonWeather } from "../engine/season-weather";
+import { FERTILIZER_DOSE_KG_HA } from "../engine/subsidy";
 import type { AppEnv, AuthUser } from "../types";
 
 const query = z.object({
@@ -48,6 +51,90 @@ export const dashboardRoutes = new Hono<AppEnv>().use("*", requireAuth, requireR
   return c.json(await cached(`dashboard:${user.id}:${q.localLevelId ?? ""}:${q.seasons}`, 2 * MINUTE, () => buildDashboard(user, q)));
 });
 
+/** Subsidy allocations this fiscal year, shown only for farmers with at least one verified field. Need = declared crop area x recommended dose. */
+async function verifiedSubsidy(localLevelId: number) {
+  const prisma = getPrisma();
+  const fiscalYearBs = currentFiscalYearBs();
+  const season = currentSeason();
+  const rows = await prisma.subsidyAllocation.findMany({
+    where: {
+      status: { not: "CANCELLED" },
+      scheme: { fiscalYearBs, OR: [{ localLevelId }, { localLevelId: null }] },
+      farmer: { parcels: { some: { ward: { localLevelId } } } },
+    },
+    select: {
+      id: true,
+      needQty: true,
+      allocatedQty: true,
+      deliveredQty: true,
+      status: true,
+      priorityScore: true,
+      flags: true,
+      scheme: { select: { id: true, name: true, unit: true, criteria: true, totalStock: true } },
+      farmer: {
+        select: {
+          id: true,
+          firstNameNe: true,
+          lastNameNe: true,
+          farmingWard: { select: { number: true } },
+          parcels: {
+            where: { ward: { localLevelId } },
+            select: {
+              areaM2: true,
+              verification: true,
+              declarations: { where: { fiscalYearBs, season, isFallow: false }, select: { sownAreaM2: true, crop: { select: { code: true, nameNe: true, nameEn: true } } } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ priorityScore: "desc" }],
+  });
+
+  const verified = rows.filter((r) => r.farmer.parcels.some((p) => p.verification === "VERIFIED"));
+  const lines = verified.map((r) => {
+    const product = (r.scheme.criteria as { product?: string } | null)?.product ?? "Urea";
+    const byCrop = new Map<string, { crop: { code: string; nameNe: string; nameEn: string }; areaM2: number }>();
+    for (const p of r.farmer.parcels) for (const d of p.declarations) {
+      const cur = byCrop.get(d.crop.code) ?? { crop: d.crop, areaM2: 0 };
+      cur.areaM2 += d.sownAreaM2;
+      byCrop.set(d.crop.code, cur);
+    }
+    const calc = [...byCrop.values()].map(({ crop, areaM2 }) => {
+      const doseKgHa = FERTILIZER_DOSE_KG_HA[crop.code]?.[product] ?? 0;
+      return { cropNe: crop.nameNe, cropEn: crop.nameEn, areaM2, doseKgHa, kg: Math.round((areaM2 / 10_000) * doseKgHa) };
+    });
+    return {
+      id: r.id,
+      farmerId: r.farmer.id,
+      farmerNameNe: [r.farmer.firstNameNe, r.farmer.lastNameNe].filter(Boolean).join(" "),
+      ward: r.farmer.farmingWard.number,
+      verifiedAreaM2: r.farmer.parcels.filter((p) => p.verification === "VERIFIED").reduce((a, p) => a + p.areaM2, 0),
+      scheme: r.scheme.name,
+      product,
+      unit: r.scheme.unit,
+      calc,
+      needQty: r.needQty,
+      allocatedQty: r.allocatedQty,
+      deliveredQty: r.deliveredQty,
+      status: r.status,
+      priority: r.priorityScore,
+      flags: r.flags,
+    };
+  });
+  lines.sort((a, b) => b.allocatedQty - a.allocatedQty || b.needQty - a.needQty);
+  const total = (k: "needQty" | "allocatedQty") => lines.reduce((a, l) => a + l[k], 0);
+  return {
+    fiscalYearBs,
+    farmers: new Set(lines.map((l) => l.farmerId)).size,
+    needQty: total("needQty"),
+    allocatedQty: total("allocatedQty"),
+    deliveredQty: lines.reduce((a, l) => a + (l.deliveredQty ?? 0), 0),
+    hiddenUnverified: new Set(rows.filter((r) => !verified.includes(r)).map((r) => r.farmer.id)).size,
+    lines,
+  };
+}
+
 async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
   const prisma = getPrisma();
   const localLevelId = await resolveLocalLevel(user, q.localLevelId);
@@ -72,6 +159,7 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
         centroidLng: true,
         verification: true,
         landCover: true,
+        geometry: true,
         croplandShare: true,
         ward: { select: { id: true, number: true } },
         farmer: {
@@ -93,11 +181,16 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
       : Promise.resolve([]),
   ]);
 
+  const located = parcels.filter((p) => p.centroidLat != null && p.centroidLng != null);
+  const weatherP = located.length
+    ? seasonWeather(located.reduce((a, p) => a + p.centroidLat!, 0) / located.length, located.reduce((a, p) => a + p.centroidLng!, 0) / located.length, windows)
+    : Promise.resolve(windows.map(() => null));
+
   const farmerArea = new Map<string, number>();
   for (const p of parcels) farmerArea.set(p.farmer.id, (farmerArea.get(p.farmer.id) ?? 0) + p.areaM2);
 
   const statusOf = (p: (typeof parcels)[number]) =>
-    windows.map((w) => seasonStatus(p.observations.filter((o) => o.observedOn >= w.from && o.observedOn <= w.to).map((o) => o.ndvi)));
+    windows.map((w) => seasonStatus(p.observations.filter((o) => o.observedOn >= w.judgeFrom && o.observedOn <= w.to).map((o) => o.ndvi)));
   const perField = parcels.map((p) => ({ p, s: statusOf(p) }));
 
   const allPeaks = perField.flatMap(({ s }) => s.map((x) => x.peakNdvi).filter((v): v is number => v != null));
@@ -111,7 +204,8 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
     const deliveredKg = p.farmer.allocations.reduce((sum, a) => sum + (a.deliveredQty ?? a.allocatedQty), 0);
     const share = (farmerArea.get(p.farmer.id) ?? 0) > 0 ? p.areaM2 / farmerArea.get(p.farmer.id)! : 0;
     const fertilizerKg = Math.round(decl.flatMap((d) => d.inputs).reduce((sum, i) => sum + i.quantityKg, 0) + deliveredKg * share);
-    const flags: CheckFlag[] = fieldFlags({ registeredM2: p.areaM2, declaredCultivated, declaredSownM2, fertilizerKg, status: now.status, history: s.slice(0, mainIdx).map((x) => x.status) });
+    const measuredM2 = measuredAreaM2(p.geometry);
+    const flags: CheckFlag[] = fieldFlags({ registeredM2: p.areaM2, declaredCultivated, declaredSownM2, fertilizerKg, status: now.status, history: s.slice(0, mainIdx).map((x) => x.status), measuredM2 });
     const offFarmland = p.landCover != null && p.landCover !== "cropland" && (p.croplandShare ?? 0) < 0.5;
     const prod = productivityClass(s.map((x) => x.peakNdvi), muniMedian);
     return {
@@ -121,6 +215,7 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
       localName: p.localName,
       ward: p.ward.number,
       areaM2: p.areaM2,
+      measuredM2,
       lat: p.centroidLat,
       lng: p.centroidLng,
       verification: p.verification,
@@ -151,13 +246,14 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
   const cultivatedUnfertilizedM2 = sum(fields.filter((f) => f.status === "cultivated" && f.fertilizerKg === 0).map((f) => f.areaM2));
   const fertilizerOnFallowKg = sum(fields.filter((f) => f.status === "fallow").map((f) => f.fertilizerKg));
 
+  const [weather, subsidy] = await Promise.all([weatherP, verifiedSubsidy(localLevelId)]);
   const seasons = windows.map((w, i) => {
     const areas = emptyAreas();
     for (const f of fields) areas[f.history[i]!.status] += f.areaM2;
     const decl = parcels.flatMap((p) => p.declarations.filter((d) => d.fiscalYearBs === w.fiscalYearBs && d.season === w.season).map((d) => ({ d, p })));
     const declaredArea = sum([...new Map(decl.filter(({ d }) => !d.isFallow).map(({ p }) => [p.id, p.areaM2])).values()]);
     const fertArea = sum([...new Map(decl.filter(({ d }) => d.inputs.length > 0).map(({ p }) => [p.id, p.areaM2])).values()]);
-    return { key: w.key, fiscalYearBs: w.fiscalYearBs, season: w.season, labelNe: w.labelNe, labelEn: w.labelEn, from: w.from, to: w.to, inProgress: i > mainIdx, satellite: areas, declaredCultivatedM2: declaredArea, fertilizedM2: fertArea, hasDeclarations: decl.length > 0 };
+    return { key: w.key, fiscalYearBs: w.fiscalYearBs, season: w.season, labelNe: w.labelNe, labelEn: w.labelEn, from: w.from, to: w.to, inProgress: i > mainIdx, satellite: areas, declaredCultivatedM2: declaredArea, fertilizedM2: fertArea, hasDeclarations: decl.length > 0, weather: weather[i] ?? null };
   });
 
   const wards = wardRows.map((w) => {
@@ -208,6 +304,7 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
     },
     land: { registeredM2, declaredCultivatedM2, declaredFallowM2, noDeclarationM2, satellite: satNow, fertilizedM2, cultivatedUnfertilizedM2, fertilizerOnFallowKg },
     seasons,
+    subsidy,
     wards,
     checks,
     productivity,
@@ -217,7 +314,7 @@ async function buildDashboard(user: AuthUser, q: z.infer<typeof query>) {
       cultivatedPeak: SEASON_RULES.cultivatedPeak,
       fallowPeak: SEASON_RULES.fallowPeak,
       municipalityMedianPeak: muniMedian,
-      sources: { satellite: "Sentinel-2 L2A NDVI via Microsoft Planetary Computer", landCover: "ESA WorldCover 2021", declarations: "farmer app and officer records", subsidy: "delivered fertilizer allocations this fiscal year" },
+      sources: { satellite: "Sentinel-2 L2A NDVI via Microsoft Planetary Computer", landCover: "ESA WorldCover 2021", declarations: "farmer app and officer records", subsidy: "delivered fertilizer allocations this fiscal year", weather: "Open-Meteo historical archive (ERA5)" },
     },
   };
 }
