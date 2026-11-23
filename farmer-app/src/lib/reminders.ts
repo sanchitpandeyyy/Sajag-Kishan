@@ -11,7 +11,10 @@ const ENABLED_KEY = "sajagkishan.reminders";
 const NOTIFIED_KEY = "sajagkishan.alertsNotified";
 const TASK_PREFIX = "task:";
 const REMIND_HOUR = 7;
-const MAX_TASKS = 20;
+const MAX_TASKS = 30;
+const EVE_HOUR = 18;
+/** Big jobs that need preparing the day before (seed, labour, fertiliser). */
+const EVE_BEFORE = new Set(["SOWING", "TRANSPLANTING", "FERTILIZING", "HARVEST"]);
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -48,22 +51,32 @@ export async function scheduleTaskReminders(events: CalendarEvent[], lang: Lang)
   if (!(await remindersEnabled())) return 0;
   await cancelTaskReminders();
   const now = new Date();
+  const at = (day: string, hour: number, minusDays = 0) => {
+    const d = new Date(`${day.slice(0, 10)}T${String(hour).padStart(2, "0")}:00:00`);
+    d.setDate(d.getDate() - minusDays);
+    return d;
+  };
   const upcoming = events
-    .map((e) => ({ e, at: new Date(`${e.startsOn.slice(0, 10)}T${String(REMIND_HOUR).padStart(2, "0")}:00:00`) }))
-    .filter(({ at }) => at > now)
+    .flatMap((e) => [
+      ...(EVE_BEFORE.has(e.task) ? [{ e, at: at(e.startsOn, EVE_HOUR, 1), eve: true }] : []),
+      { e, at: at(e.startsOn, REMIND_HOUR), eve: false },
+    ])
+    .filter((x) => x.at > now)
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
     .slice(0, MAX_TASKS);
 
-  for (const { e, at } of upcoming) {
+  for (const { e, at: when, eve } of upcoming) {
+    const name = lang === "ne" ? e.titleNe : (TASK_EN[e.task] ?? e.titleNe);
     await Notifications.scheduleNotificationAsync({
-      identifier: `${TASK_PREFIX}${e.crop}:${e.task}:${e.startsOn.slice(0, 10)}`,
+      identifier: `${TASK_PREFIX}${e.crop}:${e.task}:${e.startsOn.slice(0, 10)}${eve ? ":eve" : ""}`,
       content: {
-        title: lang === "ne" ? `आज: ${e.titleNe}` : `Today: ${TASK_EN[e.task] ?? e.titleNe}`,
-        body: lang === "ne" ? "कृषि दृष्टि पात्रो" : "Krishi Dristi calendar",
+        title: lang === "ne" ? `${eve ? "भोलि" : "आज"}: ${name}` : `${eve ? "Tomorrow" : "Today"}: ${name}`,
+        body: e.noteNe ?? (lang === "ne" ? "कृषि दृष्टि पात्रो" : "Krishi Dristi calendar"),
         sound: "default",
         priority: Notifications.AndroidNotificationPriority.MAX,
         data: { screen: "/calendar" },
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: CHANNEL },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
     });
   }
   return upcoming.length;
