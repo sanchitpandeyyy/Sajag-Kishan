@@ -60,7 +60,9 @@ export const auth = betterAuth({
   session: {
     // Farmers stay signed in (the app must work offline for months). Officers are still signed out
     // after OFFICER_IDLE_MS without use; that check lives in requireAuth.
-    expiresIn: 60 * 60 * 24 * 365 * 10,
+    // Cookies may not live longer than 400 days (better-call throws, so sign-in would fail with a 500).
+    // The session slides forward on use (updateAge), so a farmer who opens the app within a year stays signed in.
+    expiresIn: 60 * 60 * 24 * 395,
     updateAge: 60 * 60 * 24,
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
