@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { AuthUser } from "../types";
-import { aiConfigured, geminiJson } from "./gemini";
+import { geminiConfigured, geminiJson } from "./gemini";
 import { officerFacts, type OfficerFacts } from "./officer-facts";
 
 const DIGITS = "०१२३४५६७८९";
@@ -64,7 +64,7 @@ let client: Anthropic | null = null;
 const claudeConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
 async function llmJson<T extends z.ZodTypeAny>(system: string, prompt: string, schema: T): Promise<{ data: z.infer<T>; mode: "gemini" | "llm" } | null> {
-  if (aiConfigured()) {
+  if (geminiConfigured()) {
     try {
       const raw = await geminiJson(`${system}\nRespond with JSON only.`, prompt);
       return { data: schema.parse(JSON.parse(raw)), mode: "gemini" };
