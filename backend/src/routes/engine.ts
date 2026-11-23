@@ -25,7 +25,6 @@ export const engineRoutes = new Hono<AppEnv>()
       alerts: [...evaluateWeatherAlerts(fc.daily), ...evaluateLateBlight(fc.hourly), ...evaluateRiceBlast(fc.hourly)],
       daily: fc.daily,
       source: "open-meteo",
-      disclaimerNe: "यो पूर्वानुमानमा आधारित सूचना हो। स्थानीय कृषि प्राविधिकसँग पनि सल्लाह लिनुहोस्।",
     });
   })
   .get(

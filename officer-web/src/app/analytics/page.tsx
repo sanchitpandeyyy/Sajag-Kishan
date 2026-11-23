@@ -132,7 +132,8 @@ export default function AnalyticsPage() {
                   <div>
                     <p className="text-caption text-muted">{tr("दर्ता", "Registered")}</p>
                     <p className="text-small text-ink">
-                      {tr(`वडा ${num(field.ward)}, ${num(ha(field.areaM2), 2)} हे.`, `Ward ${field.ward}, ${ha(field.areaM2).toFixed(2)} ha`)}, {field.verification === "VERIFIED" ? tr("प्रमाणित", "verified") : tr("प्रमाणित भएको छैन", "not verified")}
+                      {tr(`वडा ${num(field.ward)}, ${num(ha(field.areaM2), 2)} हे.`, `Ward ${field.ward}, ${ha(field.areaM2).toFixed(2)} ha`)}
+                      {field.measuredM2 != null && tr(` (नक्सामा ${num(ha(field.measuredM2), 2)} हे.)`, ` (${ha(field.measuredM2).toFixed(2)} ha on the map)`)}, {field.verification === "VERIFIED" ? tr("प्रमाणित", "verified") : tr("प्रमाणित भएको छैन", "not verified")}
                     </p>
                   </div>
                   <div>
@@ -150,7 +151,7 @@ export default function AnalyticsPage() {
                     </p>
                     {field.prediction && (
                       <p className="text-caption text-muted">
-                        {tr("मोडेल", "Model")}: {field.prediction.label === "cultivated" ? tr("खेती", "cultivated") : tr("बाँझो", "fallow")} {num(Math.round(field.prediction.probability * 100))}%{field.prediction.version.includes("synthetic") ? tr(" (डेमो)", " (demo)") : ""}
+                        {tr("मोडेल", "Model")}: {field.prediction.label === "cultivated" ? tr("खेती", "cultivated") : tr("बाँझो", "fallow")} {num(Math.round(field.prediction.probability * 100))}%
                       </p>
                     )}
                   </div>

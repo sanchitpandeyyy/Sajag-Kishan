@@ -1,4 +1,5 @@
 import { getPrisma, type Prisma } from "../db";
+import { asPolygon } from "../geo/field";
 import { backscatterAt, radarVerdict, searchRadarScenes } from "./sentinel1";
 import { greennessVerdict, indicesAt, searchScenes } from "./sentinel2";
 import { predictParcel } from "../ml/jobs";
@@ -17,6 +18,10 @@ async function ensureWardClimate(wardId: number) {
 
 export interface SyncStatus {
   running: boolean;
+  trigger: "manual" | "auto" | null;
+  phase: string | null;
+  lastAutoRunAt: string | null;
+  nextAutoRunAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
   parcelsTotal: number;
@@ -25,11 +30,12 @@ export interface SyncStatus {
   errors: { parcelId: string; error: string }[];
 }
 
-export const syncStatus: SyncStatus = { running: false, startedAt: null, finishedAt: null, parcelsTotal: 0, parcelsDone: 0, observations: 0, errors: [] };
+export const syncStatus: SyncStatus = { running: false, trigger: null, phase: null, lastAutoRunAt: null, nextAutoRunAt: null, startedAt: null, finishedAt: null, parcelsTotal: 0, parcelsDone: 0, observations: 0, errors: [] };
 
 export async function syncParcel(parcelId: string, opts: { months?: number; maxScenes?: number } = {}): Promise<number> {
   const prisma = getPrisma();
-  const p = await prisma.parcel.findUniqueOrThrow({ where: { id: parcelId }, select: { id: true, wardId: true, centroidLat: true, centroidLng: true, slopeDeg: true, soilPh: true, soilEstimatedAt: true } });
+  const p = await prisma.parcel.findUniqueOrThrow({ where: { id: parcelId }, select: { id: true, wardId: true, centroidLat: true, centroidLng: true, slopeDeg: true, soilPh: true, soilEstimatedAt: true, geometry: true } });
+  const ring = asPolygon(p.geometry)?.coordinates[0] ?? null;
   if (p.centroidLat == null || p.centroidLng == null) return 0;
   const [lat, lng] = [p.centroidLat, p.centroidLng];
 
@@ -63,9 +69,9 @@ export async function syncParcel(parcelId: string, opts: { months?: number; maxS
   for (const scene of await searchScenes(lat, lng, { from, to, maxCloud: 60, limit: opts.maxScenes ?? 8 })) {
     const observedOn = new Date(`${scene.datetime.slice(0, 10)}T00:00:00Z`);
     if (await prisma.satelliteObservation.findFirst({ where: { parcelId: p.id, sensor: "S2", observedOn } })) continue;
-    const r = await indicesAt(scene, lat, lng);
+    const r = await indicesAt(scene, lat, lng, fetch, ring);
     await prisma.satelliteObservation.create({
-      data: { parcelId: p.id, wardId: p.wardId, observedOn, sensor: "S2", ndvi: r.ndvi, ndre: r.ndre, ndwi: r.ndwi, ndmi: r.ndmi, evi: r.evi, savi: r.savi, cloudPct: r.cloudPct, meta: { sceneId: r.sceneId, scl: r.scl } as Prisma.InputJsonValue },
+      data: { parcelId: p.id, wardId: p.wardId, observedOn, sensor: "S2", ndvi: r.ndvi, ndre: r.ndre, ndwi: r.ndwi, ndmi: r.ndmi, evi: r.evi, savi: r.savi, cloudPct: r.cloudPct, meta: { sceneId: r.sceneId, scl: r.scl, method: r.method ?? "point", pixels: r.pixels ?? null, clearPixels: r.clearPixels ?? null } as Prisma.InputJsonValue },
     });
     stored++;
   }
@@ -110,24 +116,35 @@ function shortError(e: unknown): string {
   return (lines.at(-1) ?? msg).slice(0, 200);
 }
 
-export function startSync(parcelIds: string[]): boolean {
-  if (syncStatus.running) return false;
-  Object.assign(syncStatus, { running: true, startedAt: new Date().toISOString(), finishedAt: null, parcelsTotal: parcelIds.length, parcelsDone: 0, observations: 0, errors: [] });
-  void (async () => {
-    for (const id of parcelIds) {
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          syncStatus.observations += await syncParcel(id);
-          break;
-        } catch (e) {
-          if (attempt === 3) syncStatus.errors.push({ parcelId: id, error: shortError(e) });
-          else await new Promise((r) => setTimeout(r, attempt * 5000));
+type Worker = (parcelId: string) => Promise<number>;
+
+/** Run a worker over parcels in the background, sharing one lock and status between manual and automatic runs. */
+export function runSync(parcelIds: string[], opts: { trigger: "manual" | "auto"; phase?: string; worker?: Worker }): Promise<void> | null {
+  if (syncStatus.running) return null;
+  const worker = opts.worker ?? ((id: string) => syncParcel(id));
+  Object.assign(syncStatus, { running: true, trigger: opts.trigger, phase: opts.phase ?? null, startedAt: new Date().toISOString(), finishedAt: null, parcelsTotal: parcelIds.length, parcelsDone: 0, observations: 0, errors: [] });
+  return (async () => {
+    try {
+      for (const id of parcelIds) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            syncStatus.observations += await worker(id);
+            break;
+          } catch (e) {
+            if (attempt === 3) syncStatus.errors.push({ parcelId: id, error: shortError(e) });
+            else await new Promise((r) => setTimeout(r, attempt * 5000));
+          }
         }
+        syncStatus.parcelsDone++;
       }
-      syncStatus.parcelsDone++;
+    } finally {
+      syncStatus.running = false;
+      syncStatus.finishedAt = new Date().toISOString();
+      if (syncStatus.observations > 0) bumpDataVersion();
     }
-    syncStatus.running = false;
-    syncStatus.finishedAt = new Date().toISOString();
   })();
-  return true;
+}
+
+export function startSync(parcelIds: string[]): boolean {
+  return runSync(parcelIds, { trigger: "manual", phase: "recent" }) != null;
 }

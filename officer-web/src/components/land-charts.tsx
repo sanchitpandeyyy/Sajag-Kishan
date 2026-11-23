@@ -79,36 +79,154 @@ export function CompareBars({ rows, unit }: { rows: { label: string; value: numb
   );
 }
 
-export function SeasonColumns({ seasons }: { seasons: { key: string; label: string; satellite: AreaByStatus; declared: number | null; inProgress: boolean }[] }) {
+export interface SeasonWeather {
+  rainMm: number;
+  normalRainMm: number | null;
+  rainVsNormal: number | null;
+  tempMeanC: number | null;
+  normalTempC: number | null;
+  days: number;
+  complete: boolean;
+}
+
+export interface SeasonColumn {
+  key: string;
+  label: string;
+  satellite: AreaByStatus;
+  declared: number | null;
+  inProgress: boolean;
+  weather: SeasonWeather | null;
+}
+
+function splitLabel(label: string): [string, string] {
+  const i = label.lastIndexOf(" ");
+  return i > 0 ? [label.slice(0, i), label.slice(i + 1)] : [label, ""];
+}
+
+function NormalChip({ r }: { r: number | null }) {
+  const { tr, num } = useLang();
+  if (r == null) return <span className="text-muted">–</span>;
+  const diff = Math.round((r - 1) * 100);
+  const tone = r < 0.75 ? "bg-[#a0522d]/10 text-[#8a4423]" : r > 1.25 ? "bg-[#1b7a95]/10 text-[#155f74]" : "bg-fill text-body";
+  const text = Math.abs(diff) < 5 ? tr("सामान्य", "Normal") : `${diff > 0 ? "+" : "−"}${num(Math.abs(diff))}%`;
+  return <span className={`inline-block rounded-full px-2 py-0.5 font-semibold tnum ${tone}`}>{text}</span>;
+}
+
+export function SeasonColumns({ seasons }: { seasons: SeasonColumn[] }) {
   const { tr, num } = useLang();
   const max = Math.max(...seasons.map((s) => ORDER.reduce((a, k) => a + s.satellite[k], 0)), 1);
-  const H = 180;
+  const H = 168;
+  const hasWeather = seasons.some((s) => s.weather);
+  const cols = { gridTemplateColumns: `6.5rem repeat(${seasons.length}, minmax(4.5rem, 1fr))` };
+  const row = "grid items-center gap-x-3 sm:gap-x-4";
+  const head = "text-caption font-medium text-muted";
+  const cell = "text-center text-small tnum";
+
   return (
     <div>
-      <div className="flex items-end gap-3 sm:gap-5" style={{ height: H + 4 }}>
-        {seasons.map((s) => {
-          const total = ORDER.reduce((a, k) => a + s.satellite[k], 0);
-          return (
-            <div key={s.key} className="relative flex h-full flex-1 flex-col justify-end" title={ORDER.map((k) => `${STATUS[k].en} ${ha(s.satellite[k]).toFixed(2)} ha`).join("\n")}>
-              <div className={`flex w-full flex-col-reverse overflow-hidden rounded-t-md ${s.inProgress ? "opacity-50" : ""}`} style={{ height: `${(total / max) * H}px` }}>
-                {ORDER.map((k) => (s.satellite[k] > 0 ? <div key={k} style={{ height: `${(s.satellite[k] / (total || 1)) * 100}%`, background: STATUS[k].color }} /> : null))}
-              </div>
-              {s.declared != null && s.declared > 0 && <div className="absolute inset-x-0 h-0.5 bg-ink" style={{ bottom: `${(s.declared / max) * H}px` }} aria-hidden />}
+      <div className="scroll-thin -mx-1 overflow-x-auto px-1 pb-1">
+        <div className="min-w-[36rem]">
+          {/* bars on a shared baseline */}
+          <div className={`${row} border-b border-ink/20 pb-px`} style={cols}>
+            <div className="flex flex-col justify-between py-0.5 text-right text-caption text-muted tnum" style={{ height: H }} aria-hidden>
+              <span>{tr(`${num(ha(max), 1)} हे.`, `${ha(max).toFixed(1)} ha`)}</span>
+              <span>0</span>
             </div>
-          );
-        })}
+            {seasons.map((s) => {
+              const total = ORDER.reduce((a, k) => a + s.satellite[k], 0);
+              const empty = s.inProgress && total === s.satellite.unknown;
+              const h = `${(total / max) * H}px`;
+              return (
+                <div key={s.key} className="relative mx-auto w-full max-w-16" style={{ height: H }} title={ORDER.map((k) => `${STATUS[k].en} ${ha(s.satellite[k]).toFixed(2)} ha`).join("\n")}>
+                  {empty ? (
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-center rounded-t-md border border-b-0 border-dashed border-ink/25 bg-page" style={{ height: h }}>
+                      <span className="px-1 text-center text-caption font-medium text-muted">{tr("चाँडै", "Too early")}</span>
+                    </div>
+                  ) : (
+                    <div className={`absolute inset-x-0 bottom-0 flex flex-col-reverse overflow-hidden rounded-t-md ${s.inProgress ? "opacity-50" : ""}`} style={{ height: h }}>
+                      {ORDER.map((k) => (s.satellite[k] > 0 ? <div key={k} style={{ height: `${(s.satellite[k] / (total || 1)) * 100}%`, background: STATUS[k].color }} /> : null))}
+                    </div>
+                  )}
+                  {s.declared != null && s.declared > 0 && <div className="absolute -inset-x-1.5 h-0.5 rounded-full bg-ink" style={{ bottom: `${(s.declared / max) * H}px` }} aria-hidden />}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* season names */}
+          <div className={`${row} pt-2.5 pb-3`} style={cols}>
+            <span />
+            {seasons.map((s) => {
+              const [name, year] = splitLabel(s.label);
+              return (
+                <div key={s.key} className="text-center leading-tight">
+                  <p className="text-small font-semibold text-ink">{name}</p>
+                  <p className="text-caption text-muted tnum">{year}</p>
+                  {s.inProgress && <p className="text-caption text-muted">{tr("चलिरहेको", "in progress")}</p>}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* figures, one aligned row each */}
+          <div className="divide-y divide-line border-t border-line">
+            <div className={`${row} py-2.5`} style={cols}>
+              <span className={head}>{tr("खेती देखिएको", "Farmed")}</span>
+              {seasons.map((s) => {
+                const total = ORDER.reduce((a, k) => a + s.satellite[k], 0);
+                const checked = total - s.satellite.unknown;
+                const pct = checked > 0 ? Math.round((s.satellite.cultivated / checked) * 100) : null;
+                return (
+                  <span key={s.key} className={`${cell} ${pct == null ? "text-muted" : "font-semibold text-ink"}`}>
+                    {pct == null ? "–" : `${num(pct)}%`}
+                  </span>
+                );
+              })}
+            </div>
+            {hasWeather && (
+              <>
+                <div className={`${row} py-2.5`} style={cols}>
+                  <span className={head}>{tr("वर्षा", "Rain")}</span>
+                  {seasons.map((s) => (
+                    <span key={s.key} className={`${cell} text-ink`}>
+                      {s.weather ? tr(`${num(s.weather.rainMm, 0)} मि.मि.`, `${s.weather.rainMm.toLocaleString("en")} mm`) : <span className="text-muted">–</span>}
+                    </span>
+                  ))}
+                </div>
+                <div className={`${row} py-2`} style={cols}>
+                  <span className={head}>{tr("सामान्यको तुलनामा", "vs normal")}</span>
+                  {seasons.map((s) => (
+                    <span key={s.key} className={`${cell} text-caption`}>
+                      <NormalChip r={s.weather?.rainVsNormal ?? null} />
+                    </span>
+                  ))}
+                </div>
+                <div className={`${row} py-2.5`} style={cols}>
+                  <span className={head}>{tr("औसत तापक्रम", "Avg temp")}</span>
+                  {seasons.map((s) => (
+                    <span key={s.key} className={`${cell} text-body`}>
+                      {s.weather?.tempMeanC != null ? `${num(s.weather.tempMeanC, 1)}°C` : <span className="text-muted">–</span>}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
-      <div className="mt-2 flex gap-3 sm:gap-5">
-        {seasons.map((s) => (
-          <p key={s.key} className="flex-1 text-center text-caption leading-tight text-muted">
-            {s.label}
-            {s.inProgress && <span className="block">{tr("(चलिरहेको)", "(in progress)")}</span>}
-          </p>
-        ))}
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-4">
+        <StatusLegend />
+        <span className="flex items-center gap-1.5 text-caption text-body">
+          <span className="inline-block h-0.5 w-4 rounded-full bg-ink" aria-hidden /> {tr("किसानले घोषणा गरेको", "Declared by farmers")}
+        </span>
       </div>
-      <p className="mt-3 flex items-center gap-2 text-caption text-muted">
-        <span className="inline-block h-0.5 w-5 bg-ink" aria-hidden /> {tr("किसानले घोषणा गरेको खेती क्षेत्र", "Area farmers declared cultivated")}
-        <span className="ml-2">{tr(`जम्मा अधिकतम ${num(ha(max), 1)} हे.`, `Scale up to ${ha(max).toFixed(1)} ha`)}</span>
+      <p className="mt-2 text-caption leading-relaxed text-muted">
+        {tr(
+          "खेती देखिएको: जाँच भएका खेतमध्ये बाली देखिएको भाग। मौसमको पहिलो ३० दिन (अघिल्लो बाली बाँकी हुने बेला) गनिँदैन।",
+          "Farmed: share of checked fields where a crop was seen. The first 30 days of each season are skipped, when the previous crop is often still standing.",
+        )}
+        {hasWeather && tr(" वर्षा र तापक्रम: Open-Meteo (ERA5); सामान्य = पछिल्ला १० वर्षको सोही अवधिको औसत।", " Rain and temperature: Open-Meteo (ERA5); normal = average of the same days over the past 10 years.")}
       </p>
     </div>
   );

@@ -206,7 +206,7 @@ export default function ReportsPage() {
 
             <footer className="border-t border-line pt-3 text-xs text-ink-muted">
               {tr(
-                "स्रोत: सरकारी कृषक दर्ता, कृषक घोषणा र वितरित अनुदान। मलको माग प्रारम्भिक सिफारिस मात्रामा आधारित अनुमान हो। व्यक्तिगत विवरण (मोबाइल, नागरिकता) यस प्रतिवेदनमा समावेश छैन।",
+                "स्रोत: सरकारी कृषक दर्ता, कृषक घोषणा र वितरित अनुदान। मलको माग सिफारिस मात्रामा आधारित अनुमान हो। व्यक्तिगत विवरण (मोबाइल, नागरिकता) यस प्रतिवेदनमा समावेश छैन।",
                 "Sources: government farmer registry, farmer declarations and delivered subsidy. Fertilizer demand is an estimate from initial recommended doses. Personal details (mobile, citizenship) are not included.",
               )}
             </footer>

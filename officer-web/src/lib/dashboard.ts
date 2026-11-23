@@ -1,7 +1,7 @@
-import { CircleOff, EyeOff, FilePlus, HandCoins, Ruler, Trees, type LucideIcon } from "lucide-react";
-import type { AreaByStatus, FieldStatus } from "@/components/land-charts";
+import { CircleOff, EyeOff, FilePlus, HandCoins, Ruler, Spline, Trees, type LucideIcon } from "lucide-react";
+import type { AreaByStatus, FieldStatus, SeasonWeather } from "@/components/land-charts";
 
-export type Flag = "subsidy_on_fallow" | "declared_not_seen" | "farmed_not_declared" | "abandoned" | "area_overclaim" | "not_farmland";
+export type Flag = "subsidy_on_fallow" | "declared_not_seen" | "farmed_not_declared" | "abandoned" | "area_overclaim" | "area_mismatch" | "not_farmland";
 export type Productivity = "high" | "normal" | "low" | "unknown";
 
 export interface DashboardField {
@@ -11,6 +11,8 @@ export interface DashboardField {
   localName: string | null;
   ward: number;
   areaM2: number;
+  /** Area of the mapped outline, m² (null when the field has no outline) */
+  measuredM2?: number | null;
   lat: number | null;
   lng: number | null;
   verification: string;
@@ -53,7 +55,8 @@ export interface Dashboard {
     cultivatedUnfertilizedM2: number;
     fertilizerOnFallowKg: number;
   };
-  seasons: { key: string; labelNe: string; labelEn: string; inProgress: boolean; satellite: AreaByStatus; declaredCultivatedM2: number; fertilizedM2: number; hasDeclarations: boolean }[];
+  seasons: { key: string; labelNe: string; labelEn: string; inProgress: boolean; satellite: AreaByStatus; declaredCultivatedM2: number; fertilizedM2: number; hasDeclarations: boolean; weather: SeasonWeather | null }[];
+  subsidy: VerifiedSubsidy;
   wards: { number: number; fields: number; registeredM2: number; declaredCultivatedM2: number; satellite: AreaByStatus; fertilizedM2: number; flagged: number }[];
   checks: DashboardField[];
   productivity: Record<Productivity, { fields: number; areaM2: number }>;
@@ -67,6 +70,7 @@ export const FLAGS: Record<Flag, { icon: LucideIcon; ne: string; en: string }> =
   declared_not_seen: { icon: EyeOff, ne: "बाली घोषणा गरियो, भू-उपग्रहमा देखिएन", en: "Crop declared, not seen by the satellite" },
   abandoned: { icon: CircleOff, ne: "लगातार ३ मौसम बाँझो: छाडिएको हुन सक्छ", en: "Fallow 3 seasons in a row: possibly abandoned" },
   area_overclaim: { icon: Ruler, ne: "घोषित खेती क्षेत्र दर्ता जग्गाभन्दा बढी", en: "Declared crop area is larger than the registered land" },
+  area_mismatch: { icon: Spline, ne: "नक्सामा कोरिएको क्षेत्रफल दर्ता क्षेत्रफलसँग मिल्दैन (३०% भन्दा बढी फरक)", en: "Mapped outline area differs from the registered area by over 30%" },
   farmed_not_declared: { icon: FilePlus, ne: "खेती देखियो, घोषणा छैन", en: "Farmed, but nothing declared" },
 };
 
@@ -83,4 +87,30 @@ export function seasonShort(key: string, tr: (ne: string, en: string) => string)
   const names: Record<string, [string, string]> = { BARSHE: ["बर्खे", "Monsoon"], HIUDE: ["हिउँदे", "Winter"], CHAITE: ["चैते", "Spring"] };
   const [ne, en] = names[season] ?? [season, season];
   return tr(`${ne} ${yy}`, `${en} ${yy}`);
+}
+
+export interface VerifiedSubsidy {
+  fiscalYearBs: string;
+  farmers: number;
+  needQty: number;
+  allocatedQty: number;
+  deliveredQty: number;
+  hiddenUnverified: number;
+  lines: {
+    id: string;
+    farmerId: string;
+    farmerNameNe: string;
+    ward: number;
+    verifiedAreaM2: number;
+    scheme: string;
+    product: string;
+    unit: string;
+    calc: { cropNe: string; cropEn: string; areaM2: number; doseKgHa: number; kg: number }[];
+    needQty: number;
+    allocatedQty: number;
+    deliveredQty: number | null;
+    status: "PLANNED" | "APPROVED" | "DELIVERED" | "CANCELLED";
+    priority: number | null;
+    flags: string[];
+  }[];
 }

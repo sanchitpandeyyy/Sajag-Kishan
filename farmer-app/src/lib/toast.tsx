@@ -13,15 +13,78 @@ interface ToastItem {
 
 let counter = 0;
 let last: { text: string; at: number } | null = null;
+let pending: ToastItem | null = null;
 const listeners = new Set<(t: ToastItem) => void>();
 
 export function showToast(text: string, kind: Kind = "error") {
   const now = Date.now();
   if (last && last.text === text && now - last.at < 3000) return;
   last = { text, at: now };
-  console.warn(`[toast:${kind}] ${text}`);
+  console.log(`[toast:${kind}] ${text}`);
   const item = { id: ++counter, text, kind };
-  listeners.forEach((l) => l(item));
+  if (listeners.size === 0) pending = item;
+  else listeners.forEach((l) => l(item));
+}
+
+/** An error the API layer already handled (toasted, or deliberately silent for 404s); reportError skips it. */
+export class ToastedError extends Error {}
+
+export function errorText(e: unknown): string {
+  if (e instanceof Error) return e.message || e.name;
+  if (typeof e === "string") return e;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
+
+/** Toast an unexpected error with where it happened, unless it was already toasted. */
+export function reportError(where: string, e: unknown) {
+  if (e instanceof ToastedError) return;
+  console.log(`[${where}]`, e);
+  showToast(`${where}: ${errorText(e)}`);
+}
+
+let globalInstalled = false;
+
+/** Toast uncaught JS errors and unhandled promise rejections (release builds swallow them silently). */
+export function installGlobalErrorToasts() {
+  if (globalInstalled) return;
+  globalInstalled = true;
+
+  type Handler = (e: unknown, fatal?: boolean) => void;
+  const g = globalThis as unknown as {
+    ErrorUtils?: { getGlobalHandler?: () => Handler | undefined; setGlobalHandler?: (h: Handler) => void };
+    HermesInternal?: { enablePromiseRejectionTracker?: (o: { allRejections: boolean; onUnhandled: (id: number, e: unknown) => void }) => void };
+  };
+
+  // Error tracking is optional: never let it break app start-up.
+  try {
+    const eu = g.ErrorUtils;
+    if (eu && typeof eu.setGlobalHandler === "function") {
+      const prev = typeof eu.getGlobalHandler === "function" ? eu.getGlobalHandler() : undefined;
+      eu.setGlobalHandler((e, fatal) => {
+        try {
+          // Development hot-reload hiccups ("[Refresh] ...") aren't app errors; a full reload clears them.
+          const devReload = __DEV__ && /^\[Refresh\]/.test(errorText(e));
+          if (!devReload) reportError(fatal ? "Crash" : "Error", e);
+        } catch {}
+        if (typeof prev === "function") prev(e, fatal);
+      });
+    }
+  } catch (e) {
+    console.log("[toast] global error handler not installed", e);
+  }
+
+  try {
+    const track = g.HermesInternal?.enablePromiseRejectionTracker;
+    if (!__DEV__ && typeof track === "function") {
+      track({ allRejections: true, onUnhandled: (_id, e) => reportError("Unhandled", e) });
+    }
+  } catch (e) {
+    console.log("[toast] rejection tracker not installed", e);
+  }
 }
 
 export function ToastHost() {
@@ -44,6 +107,10 @@ export function ToastHost() {
       timer.current = setTimeout(hide, t.kind === "error" ? 6000 : 3500);
     };
     listeners.add(on);
+    if (pending) {
+      on(pending);
+      pending = null;
+    }
     return () => {
       listeners.delete(on);
       if (timer.current) clearTimeout(timer.current);

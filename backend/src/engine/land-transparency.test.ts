@@ -22,6 +22,14 @@ describe("season windows", () => {
   });
 });
 
+describe("season judging window", () => {
+  it("skips the first 30 days so the previous crop is not counted", () => {
+    const [spring] = seasonWindows(new Date("2026-04-10T00:00:00Z"), 1);
+    expect(spring!.from.toISOString().slice(0, 10)).toBe("2026-03-01");
+    expect(spring!.judgeFrom.toISOString().slice(0, 10)).toBe("2026-03-31");
+  });
+});
+
 describe("judgeable season", () => {
   it("waits 75 days before judging a season", () => {
     const now = new Date("2026-11-22T00:00:00Z");

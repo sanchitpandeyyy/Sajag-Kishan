@@ -57,6 +57,43 @@ export interface PixelWindow {
   resY: number;
 }
 
+/** A rectangle of pixels with enough georeferencing to find the value under any projected x/y. */
+export interface PixelGrid {
+  values: number[];
+  width: number;
+  height: number;
+  originX: number;
+  originY: number;
+  resX: number;
+  resY: number;
+}
+
+/** Value of the pixel containing projected (x, y), or null if outside the grid. */
+export function sampleGrid(g: PixelGrid, x: number, y: number): number | null {
+  const i = Math.floor((x - g.originX) / g.resX);
+  const j = Math.floor((g.originY - y) / g.resY);
+  if (i < 0 || j < 0 || i >= g.width || j >= g.height) return null;
+  return g.values[j * g.width + i] ?? null;
+}
+
+/** Read every pixel overlapping the projected box [minX, minY, maxX, maxY]. */
+export async function readBox(href: string, minX: number, minY: number, maxX: number, maxY: number): Promise<PixelGrid> {
+  const tiff = await fromUrl(href, { allowFullFile: false });
+  const image = await tiff.getImage();
+  const [iMinX = 0, iMinY = 0, iMaxX = 0, iMaxY = 0] = image.getBoundingBox();
+  const resX = (iMaxX - iMinX) / image.getWidth();
+  const resY = (iMaxY - iMinY) / image.getHeight();
+  const x0 = Math.max(0, Math.floor((minX - iMinX) / resX));
+  const x1 = Math.min(image.getWidth(), Math.ceil((maxX - iMinX) / resX));
+  const y0 = Math.max(0, Math.floor((iMaxY - maxY) / resY));
+  const y1 = Math.min(image.getHeight(), Math.ceil((iMaxY - minY) / resY));
+  const originX = iMinX + x0 * resX;
+  const originY = iMaxY - y0 * resY;
+  if (x1 <= x0 || y1 <= y0) return { values: [], width: 0, height: 0, originX, originY, resX, resY };
+  const rasters = await image.readRasters({ window: [x0, y0, x1, y1], interleave: false });
+  return { values: Array.from(rasters[0] as ArrayLike<number>), width: x1 - x0, height: y1 - y0, originX, originY, resX, resY };
+}
+
 export async function readWindow(href: string, x: number, y: number, radius: number): Promise<PixelWindow> {
   const tiff = await fromUrl(href, { allowFullFile: false });
   const image = await tiff.getImage();

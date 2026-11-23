@@ -9,6 +9,7 @@ import { CompareBars, ha, SeasonColumns, STATUS, StatusBar, StatusLegend, type F
 import { ParcelMap, type ParcelFeature } from "@/components/parcel-map";
 import { Card, Shell, StateMessage } from "@/components/shell";
 import { StatTile } from "@/components/stat-tile";
+import { VerifiedSubsidyCard } from "@/components/verified-subsidy";
 import { FLAGS, PRODUCTIVITY, seasonShort, type Dashboard, type DashboardField, type Productivity } from "@/lib/dashboard";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
@@ -118,11 +119,16 @@ export default function DashboardPage() {
           </section>
 
           <section className="mt-6">
-            <Card icon={ChartColumnStacked} title={tr("मौसम अनुसार भू-उपग्रहको हेराइ", "Season by season on the satellite")}>
-              <SeasonColumns seasons={data.seasons.map((x) => ({ key: x.key, label: tr(x.labelNe, x.labelEn), satellite: x.satellite, declared: x.hasDeclarations ? x.declaredCultivatedM2 : null, inProgress: x.inProgress }))} />
-              <StatusLegend className="mt-3" />
+            <Card icon={ChartColumnStacked} title={tr("मौसम अनुसार खेती र वर्षा", "Farming and rain, season by season")}>
+              <SeasonColumns seasons={data.seasons.map((x) => ({ key: x.key, label: tr(x.labelNe, x.labelEn), satellite: x.satellite, declared: x.hasDeclarations ? x.declaredCultivatedM2 : null, inProgress: x.inProgress, weather: x.weather }))} />
             </Card>
           </section>
+
+          {data.subsidy && (
+            <section className="mt-6">
+              <VerifiedSubsidyCard data={data.subsidy} />
+            </section>
+          )}
 
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
             <Card icon={MapPinned} title={tr("खेतहरू नक्सामा", "Fields on the map")}>

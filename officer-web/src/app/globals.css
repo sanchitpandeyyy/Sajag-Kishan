@@ -117,6 +117,37 @@
   .tnum {
     font-variant-numeric: tabular-nums;
   }
+
+  /* slim scrollbar: thin rounded thumb, no track, a bit stronger on hover.
+     --scroll-thumb sets the colour; .scroll-thin-dark is for dark panels like the sidebar. */
+  .scroll-thin {
+    --scroll-thumb: rgb(15 23 42 / 0.18);
+    --scroll-thumb-hover: rgb(15 23 42 / 0.32);
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+  .scroll-thin:hover {
+    scrollbar-color: var(--scroll-thumb-hover) transparent;
+  }
+  .scroll-thin-dark {
+    --scroll-thumb: rgb(255 255 255 / 0.18);
+    --scroll-thumb-hover: rgb(255 255 255 / 0.35);
+  }
+  /* Safari and older Chromium ignore scrollbar-color */
+  .scroll-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border-radius: 9999px;
+  }
+  .scroll-thin:hover::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb-hover);
+  }
 }
 
 .bg-brand-gradient {

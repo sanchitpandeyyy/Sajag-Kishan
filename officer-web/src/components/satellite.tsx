@@ -6,9 +6,14 @@ import { SecondaryButton } from "@/components/shell";
 import { api } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
+import { NdviHistory } from "./ndvi-history";
 
 interface SyncStatus {
   running: boolean;
+  trigger: "manual" | "auto" | null;
+  phase: string | null;
+  lastAutoRunAt: string | null;
+  nextAutoRunAt: string | null;
   startedAt: string | null;
   finishedAt: string | null;
   parcelsTotal: number;
@@ -18,7 +23,7 @@ interface SyncStatus {
 }
 
 export function SatelliteSync({ onDone }: { onDone?: () => void }) {
-  const { tr, num } = useLang();
+  const { tr, num, lang } = useLang();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,13 +32,14 @@ export function SatelliteSync({ onDone }: { onDone?: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (!status?.running) return;
     const t = setInterval(async () => {
       const s = await api<SyncStatus>("/v1/satellite/status").catch(() => null);
       if (!s) return;
-      setStatus(s);
-      if (!s.running) onDone?.();
-    }, 4000);
+      setStatus((prev) => {
+        if (prev?.running && !s.running) onDone?.();
+        return s;
+      });
+    }, status?.running ? 4000 : 30000);
     return () => clearInterval(t);
   }, [status?.running, onDone]);
 
@@ -47,6 +53,7 @@ export function SatelliteSync({ onDone }: { onDone?: () => void }) {
     }
   }
 
+  const when = (iso: string) => new Date(iso).toLocaleString(lang === "ne" ? "ne-NP" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const pct = status && status.parcelsTotal ? Math.round((status.parcelsDone / status.parcelsTotal) * 100) : 0;
 
   return (
@@ -55,8 +62,8 @@ export function SatelliteSync({ onDone }: { onDone?: () => void }) {
         <Satellite className="mt-0.5 size-5 shrink-0 text-brand-800" aria-hidden />
         <p className="text-small text-body">
           {tr(
-            "Sentinel-2 भू-उपग्रहबाट नक्सामा भएका खेतको हरियाली (NDVI) जाँच्नुहोस्। घोषणा गरिएको तर हरियो नभएको खेत प्रमाणीकरणका लागि देखिन्छ।",
-            "Check the greenness (NDVI) of mapped fields from Sentinel-2. Fields declared as farmed but never green are flagged for a visit.",
+            "Sentinel-2 र Sentinel-1 भू-उपग्रहबाट नक्सामा भएका खेतको हरियाली (NDVI) हरेक ६ घण्टामा आफैँ अद्यावधिक हुन्छ, र २०१९ देखिको इतिहास पनि भरिन्छ। घोषणा गरिएको तर हरियो नभएको खेत प्रमाणीकरणका लागि देखिन्छ।",
+            "Field greenness (NDVI) from Sentinel-2 and Sentinel-1 updates automatically every 6 hours, and history back to 2019 is filled in. Fields declared as farmed but never green are flagged for a visit.",
           )}
         </p>
       </div>
@@ -66,18 +73,26 @@ export function SatelliteSync({ onDone }: { onDone?: () => void }) {
             <div className="h-full bg-brand-700 transition-[width]" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-2 text-small text-muted">
-            {tr(`${num(status.parcelsDone)} / ${num(status.parcelsTotal)} खेत जाँचियो`, `${status.parcelsDone} of ${status.parcelsTotal} fields checked`)}
+            {status.phase === "history" ? tr("पुरानो इतिहास भर्दै: ", "Filling history: ") : status.trigger === "auto" ? tr("स्वचालित अद्यावधिक: ", "Automatic update: ") : ""}
+            {tr(`${num(status.parcelsDone)} / ${num(status.parcelsTotal)} खेत जाँचियो, ${num(status.observations)} नयाँ पढाइ`, `${status.parcelsDone} of ${status.parcelsTotal} fields checked, ${status.observations} new readings`)}
           </p>
         </div>
       ) : (
         <SecondaryButton onClick={start} className="self-start">
-          {tr("भू-उपग्रह जाँच सुरु गर्नुहोस्", "Run satellite check")}
+          {tr("अहिले नै जाँच गर्नुहोस्", "Check now")}
         </SecondaryButton>
       )}
       {status?.finishedAt && !status.running && (
         <p className="text-small text-muted">
           {tr(`अन्तिम जाँच: ${num(status.parcelsDone)} खेत, ${num(status.observations)} नयाँ तस्बिर पढियो`, `Last check: ${status.parcelsDone} fields, ${status.observations} new scenes read`)}
           {status.errors.length ? tr(`, ${num(status.errors.length)} असफल`, `, ${status.errors.length} failed`) : ""}
+        </p>
+      )}
+      {(status?.lastAutoRunAt || status?.nextAutoRunAt) && (
+        <p className="text-caption text-muted">
+          {status.lastAutoRunAt && tr(`अन्तिम स्वचालित अद्यावधिक: ${when(status.lastAutoRunAt)}`, `Last automatic update: ${when(status.lastAutoRunAt)}`)}
+          {status.lastAutoRunAt && status.nextAutoRunAt && " · "}
+          {status.nextAutoRunAt && !status.running && tr(`अर्को: ${when(status.nextAutoRunAt)}`, `Next: ${when(status.nextAutoRunAt)}`)}
         </p>
       )}
       {error && <p className="text-small text-danger">{error}</p>}
@@ -118,20 +133,19 @@ const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const COMPASS_NE = ["उत्तर", "उत्तर-पूर्व", "पूर्व", "दक्षिण-पूर्व", "दक्षिण", "दक्षिण-पश्चिम", "पश्चिम", "उत्तर-पश्चिम"];
 
 export function FieldGreenness({ parcelId }: { parcelId: string }) {
-  const { tr, num, lang } = useLang();
+  const { tr, num } = useLang();
   const { data } = useApi<FieldSatelliteData>(`/v1/satellite/parcels/${parcelId}`);
   if (!data) return null;
   const classes = data.ndviClasses ?? [];
-  const valid = data.series.filter((s) => s.ndvi != null).slice(-12);
+  const valid = data.series.filter((s): s is typeof s & { ndvi: number } => s.ndvi != null).map((s) => ({ date: s.date, ndvi: s.ndvi }));
   const latest = [...data.series].reverse().find((s) => s.ndvi != null);
   const v = data.verdict;
   const r = data.radarVerdict;
   const t = data.terrain;
-  const dateLabel = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(lang === "ne" ? "ne-NP" : "en-GB", { day: "numeric", month: "short" });
 
   const verdict =
     v.validCount === 0 && r.validCount === 0
-      ? tr("भू-उपग्रह तथ्याङ्क छैन। नक्सा पृष्ठबाट जाँच चलाउनुहोस्।", "No satellite readings yet. Run a check from the map page.")
+      ? tr("भू-उपग्रह तथ्याङ्क अझै आएको छैन। अर्को स्वचालित अद्यावधिकपछि देखिनेछ।", "No satellite readings yet. They will appear after the next automatic update.")
       : r.cropCycleSeen
         ? tr("राडारले यस मौसम बाली उम्रेको देखाउँछ (बादलमा पनि)।", "Radar shows a crop growing this season (it sees through cloud).")
         : v.likelyFallow
@@ -160,19 +174,7 @@ export function FieldGreenness({ parcelId }: { parcelId: string }) {
         {v.peakNdvi != null && <span className="text-caption text-muted">{tr(`उच्चतम NDVI ${num(v.peakNdvi)}`, `Peak NDVI ${v.peakNdvi}`)}</span>}
       </div>
 
-      {valid.length > 0 && (
-        <div className="mt-3 flex h-24 items-end gap-1.5" role="img" aria-label={tr("NDVI चार्ट", "NDVI chart")}>
-          {valid.map((s) => {
-            const c = classes.length ? classFor(classes, s.ndvi!) : null;
-            return (
-              <div key={s.date} className="flex flex-1 flex-col items-center gap-1">
-                <div className="w-full rounded-t-[3px]" style={{ height: `${Math.max(4, Math.min(1, s.ndvi!) * 100)}%`, background: c?.color ?? "#4a9f1e" }} title={`${s.date}: NDVI ${s.ndvi}${c ? `, ${c.en}` : ""}`} />
-                <span className="text-[10px] leading-none text-muted">{dateLabel(s.date)}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {valid.length > 0 && <NdviHistory points={valid} classes={classes} />}
 
       {classes.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-caption text-muted" aria-label={tr("NDVI मापन", "NDVI scale")}>
@@ -232,10 +234,7 @@ export function FieldGreenness({ parcelId }: { parcelId: string }) {
           <span className="font-semibold text-ink">
             {data.prediction.label === "cultivated" ? tr("खेती भएको", "cultivated") : tr("बाँझो", "fallow")} ({num(Math.round(data.prediction.probability * 100))}% {tr("खेती हुने सम्भावना", "chance cultivated")})
           </span>
-          <span className="block text-caption text-muted">
-            {data.prediction.version}
-            {data.prediction.version.includes("synthetic") ? tr(", डेमो मोडेल: नमूना तथ्याङ्कमा तालिम, साँचो जाँचपछि फेरि तालिम दिइन्छ", ", demo model trained on synthetic fields; retrained once officers verify real fields") : ""}
-          </span>
+          {!data.prediction.version.includes("synthetic") && <span className="block text-caption text-muted">{data.prediction.version}</span>}
         </p>
       )}
     </div>

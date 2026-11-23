@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { BrandMark } from "@/components/brand";
 import { LoginForm } from "@/components/login-form";
+import { Loader } from "@/components/shell";
 import { ButtonA, ButtonLink, Section, SectionHead } from "@/components/ui";
 import { isOfficerRole, useSession } from "@/lib/auth-client";
 import { LangToggle, useLang } from "@/lib/i18n";
@@ -299,7 +300,7 @@ export default function Landing() {
             />
             <div className="w-full max-w-[460px] justify-self-center rounded-panel bg-white p-6 shadow-raised md:p-8 lg:justify-self-end">
               {isPending ? (
-                <p className="py-10 text-center text-muted">{tr("लोड हुँदैछ", "Loading")}</p>
+                <Loader className="py-10" />
               ) : signedIn ? (
                 <div className="flex flex-col items-center gap-5 py-6 text-center">
                   <p className="text-lead text-body">{tr("तपाईं लगइन हुनुहुन्छ।", "You are signed in.")}</p>

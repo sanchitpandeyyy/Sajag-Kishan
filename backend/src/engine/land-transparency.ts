@@ -1,3 +1,4 @@
+import { areaMismatch } from "../geo/field";
 export type Season = "BARSHE" | "HIUDE" | "CHAITE";
 
 export interface SeasonWindow {
@@ -6,6 +7,8 @@ export interface SeasonWindow {
   season: Season;
   from: Date;
   to: Date;
+  /** Start of the part of the season used to judge it. The first weeks are skipped because the previous crop is often still standing (wheat in March, rice in November). */
+  judgeFrom: Date;
   labelNe: string;
   labelEn: string;
 }
@@ -34,6 +37,9 @@ function seasonOf(d: Date): { season: Season; startYear: number } {
   return { season: "CHAITE", startYear: d.getUTCFullYear() };
 }
 
+/** Days at the start of a season skipped when judging it, so the previous crop's tail is not counted. */
+export const CARRYOVER_DAYS = 30;
+
 const DEVANAGARI = "०१२३४५६७८९";
 const toDevanagari = (x: string) => x.replace(/\d/g, (d) => DEVANAGARI[Number(d)]!);
 
@@ -45,7 +51,7 @@ export function seasonWindows(now: Date, count: number): SeasonWindow[] {
   for (let i = 0; i < count; i++) {
     const w = windowFor(season, startYear);
     const fy = fiscalYearOf(new Date((w.from.getTime() + w.to.getTime()) / 2));
-    out.push({ key: `${fy}-${season}`, fiscalYearBs: fy, season, from: w.from, to: w.to, labelNe: `${SEASON_NE[season]} ${toDevanagari(fy)}`, labelEn: `${SEASON_EN[season]} ${fy}` });
+    out.push({ key: `${fy}-${season}`, fiscalYearBs: fy, season, from: w.from, to: w.to, judgeFrom: new Date(w.from.getTime() + CARRYOVER_DAYS * 86_400_000), labelNe: `${SEASON_NE[season]} ${toDevanagari(fy)}`, labelEn: `${SEASON_EN[season]} ${fy}` });
     const idx = ORDER.indexOf(season);
     if (idx === 0) {
       season = "HIUDE";
@@ -68,7 +74,7 @@ export function latestJudgeableIndex(windows: SeasonWindow[], now: Date): number
 
 export type FieldStatus = "cultivated" | "weak" | "fallow" | "unknown";
 
-export const SEASON_RULES = { cultivatedPeak: 0.5, fallowPeak: 0.35, minReadingsForFallow: 2, rule: "season-v1" } as const;
+export const SEASON_RULES = { cultivatedPeak: 0.5, fallowPeak: 0.35, minReadingsForFallow: 2, rule: "season-v2" } as const;
 
 export function seasonStatus(ndvi: (number | null)[]): { status: FieldStatus; peakNdvi: number | null; readings: number } {
   const v = ndvi.filter((x): x is number => x != null && Number.isFinite(x));
@@ -78,9 +84,9 @@ export function seasonStatus(ndvi: (number | null)[]): { status: FieldStatus; pe
   return { status, peakNdvi: Math.round(peak * 1000) / 1000, readings: v.length };
 }
 
-export type CheckFlag = "subsidy_on_fallow" | "declared_not_seen" | "farmed_not_declared" | "abandoned" | "area_overclaim";
+export type CheckFlag = "subsidy_on_fallow" | "declared_not_seen" | "farmed_not_declared" | "abandoned" | "area_overclaim" | "area_mismatch";
 
-export const FLAG_WEIGHT: Record<CheckFlag, number> = { subsidy_on_fallow: 5, declared_not_seen: 3, abandoned: 3, area_overclaim: 2, farmed_not_declared: 1 };
+export const FLAG_WEIGHT: Record<CheckFlag, number> = { subsidy_on_fallow: 5, declared_not_seen: 3, abandoned: 3, area_overclaim: 2, area_mismatch: 2, farmed_not_declared: 1 };
 
 export interface FieldCheckInput {
   registeredM2: number;
@@ -89,6 +95,8 @@ export interface FieldCheckInput {
   fertilizerKg: number;
   status: FieldStatus;
   history: FieldStatus[];
+  /** Area of the mapped outline (m²), when the field has one. */
+  measuredM2?: number | null;
 }
 
 export function fieldFlags(f: FieldCheckInput): CheckFlag[] {
@@ -99,6 +107,7 @@ export function fieldFlags(f: FieldCheckInput): CheckFlag[] {
   const known = [...f.history, f.status].filter((s) => s !== "unknown");
   if (known.length >= 3 && known.every((s) => s === "fallow")) flags.push("abandoned");
   if (f.declaredSownM2 > f.registeredM2 * 1.05) flags.push("area_overclaim");
+  if (areaMismatch(f.registeredM2, f.measuredM2)) flags.push("area_mismatch");
   return flags.sort((a, b) => FLAG_WEIGHT[b] - FLAG_WEIGHT[a]);
 }
 
