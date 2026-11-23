@@ -1,10 +1,28 @@
 import { getPrisma } from "../db";
-import { fetchForecast, generateCalendar, zoneForElevation, ZONE_LABEL_NE, type GeneratedEvent } from "../engine";
+import { fetchForecast, findTemplate, generateCalendar, getCrop, zoneForElevation, ZONE_LABEL_NE, type GeneratedEvent, type SiteContext } from "../engine";
 import { Hono } from "hono";
 import { requireAuth } from "../auth";
 import { cached, MINUTE } from "../lib/cache";
 import { farmerIdFor, wardScope } from "../scope";
 import type { AppEnv, AuthUser } from "../types";
+
+const DAY = 86_400_000;
+
+/**
+ * Mean temperature over the crop's season, read from the ward's recorded daily history.
+ * The same calendar window a year earlier is used when this season's days aren't recorded yet.
+ */
+function seasonTemp(climate: { date: Date; tempMeanC: number | null }[], sowing: Date, durationDays: number): number | null {
+  if (!climate.length) return null;
+  const byDay = new Map<string, number>();
+  for (const c of climate) if (c.tempMeanC != null) byDay.set(c.date.toISOString().slice(5, 10), c.tempMeanC);
+  const vals: number[] = [];
+  for (let i = 0; i < durationDays; i++) {
+    const v = byDay.get(new Date(sowing.getTime() + i * DAY).toISOString().slice(5, 10));
+    if (v != null) vals.push(v);
+  }
+  return vals.length >= Math.min(30, durationDays / 2) ? vals.reduce((s, x) => s + x, 0) / vals.length : null;
+}
 
 async function buildCalendar(user: AuthUser, parcelId: string) {
   const prisma = getPrisma();
@@ -29,18 +47,40 @@ async function buildCalendar(user: AuthUser, parcelId: string) {
         { crop: "maize", season: "CHAITE", sowingDate: undefined },
       ];
 
-  const year = new Date().getUTCFullYear();
-  const events: GeneratedEvent[] = plan.flatMap((p) =>
-    generateCalendar({ crop: p.crop, zone, season: p.season, sowingDate: p.sowingDate, year, forecast: forecast?.daily }),
-  );
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const [climate, ndviRows] = await Promise.all([
+    prisma.climateDay.findMany({ where: { wardId: parcel.wardId, date: { gte: new Date(now.getTime() - 400 * DAY) }, tempMeanC: { not: null } }, select: { date: true, tempMeanC: true } }),
+    prisma.satelliteObservation.findMany({ where: { parcelId: parcel.id, sensor: "S2", ndvi: { not: null }, observedOn: { gte: new Date(now.getTime() - 240 * DAY) } }, select: { observedOn: true, ndvi: true } }),
+  ]);
+  const baseSite: SiteContext = {
+    elevationM: elevation,
+    slopeDeg: parcel.slopeDeg,
+    aspectDeg: parcel.aspectDeg,
+    soilPh: parcel.soilPh,
+    soilPhEstimated: parcel.soilPhSource === "ESTIMATED_SOILGRIDS",
+    soilOrganicC: parcel.soilOrganicC,
+    clayPct: parcel.clayPct,
+    ndvi: ndviRows.map((o) => ({ date: o.observedOn.toISOString().slice(0, 10), ndvi: o.ndvi! })),
+  };
+
+  const events: GeneratedEvent[] = plan.flatMap((p) => {
+    const tpl = findTemplate(p.crop, zone, p.season);
+    const crop = getCrop(p.crop);
+    let seasonMeanTempC: number | null = null;
+    if (tpl && crop) {
+      const sow = p.sowingDate ? new Date(`${p.sowingDate}T00:00:00Z`) : new Date(Date.UTC(year, tpl.sowingStart.month - 1, tpl.sowingStart.day));
+      seasonMeanTempC = seasonTemp(climate, sow, crop.durationDays);
+    }
+    return generateCalendar({ crop: p.crop, zone, season: p.season, sowingDate: p.sowingDate, year, forecast: forecast?.daily, site: { ...baseSite, seasonMeanTempC } });
+  });
   events.sort((a, b) => a.startsOn.localeCompare(b.startsOn));
 
   return {
     parcel: { id: parcel.id, localName: parcel.localName, tole: parcel.tole, elevationM: elevation, zone, zoneNe: ZONE_LABEL_NE[zone] },
     basis: declared.length ? "declared" : "suggested",
     events,
-    generatedBy: "calendar-v0",
-    disclaimerNe: "यो पात्रो प्रारम्भिक सिफारिस हो। स्थानीय कृषि प्राविधिकको सल्लाह अनुसार मिलाउनुहोस्।",
+    generatedBy: "calendar-v1",
   };
 }
 
