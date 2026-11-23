@@ -43,7 +43,6 @@ One system, two sides:
 | [officer-web](./officer-web) | Dashboard for agriculture officers           | Next.js, React, Tailwind          |
 | [backend](./backend)         | APIs, rules engine and scheduled jobs        | Node.js, Hono, Prisma, PostgreSQL |
 | [ml](./ml)                   | Land-use model (cultivated or fallow)        | Python                            |
-| [docs](./docs)               | Notes on the satellite pipeline and accuracy |                                   |
 
 **Data sources**
 
@@ -52,6 +51,10 @@ One system, two sides:
 - Open-Meteo weather forecast and historical climate
 - Google Gemini for voice transcription and the chat assistants
 - Farmer declarations and officer records
+
+## Getting Started
+
+Each part has its own setup. Start the backend first, then the farmer app or the officer dashboard. Check the folder of each part for its environment variables and run steps.
 
 ## Team
 
